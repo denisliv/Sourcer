@@ -64,8 +64,7 @@ def _build_params(
     # --- search block ---
     params.append(("text", search_text))
     params.append(("text.logic", "all"))
-    for field in search_fields:
-        params.append(("text.field", field))
+    params.append(("text.field", ",".join(search_fields)))
     params.append(("text.period", ""))
 
     # --- experience (multiple allowed) ---
@@ -76,8 +75,7 @@ def _build_params(
     if exclude_text.strip():
         params.append(("text", exclude_text))
         params.append(("text.logic", "except"))
-        for field in exclude_fields:
-            params.append(("text.field", field))
+        params.append(("text.field", ",".join(exclude_fields)))
         params.append(("text.period", ""))
 
     # --- common ---
