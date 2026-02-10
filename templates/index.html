@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRSourcer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <span>AlfaHR<b>Sourcer</b></span>
+        </div>
+    </div>
+</header>
+
+<main>
+    <!-- Search form -->
+    <section class="search-card">
+        <h2>Поиск кандидатов</h2>
+
+        <div class="form-grid">
+            <!-- Row 1: Position search -->
+            <div class="form-group full-width">
+                <label for="searchText">Название позиции</label>
+                <input type="text" id="searchText" placeholder="Например: Python developer" autocomplete="off">
+                <div class="checkbox-row">
+                    <span class="cb-label">Искать в:</span>
+                    <label class="cb"><input type="checkbox" name="searchField" value="title" checked><span>Название резюме</span></label>
+                    <label class="cb"><input type="checkbox" name="searchField" value="skills"><span>Навыки</span></label>
+                    <label class="cb"><input type="checkbox" name="searchField" value="experience_position"><span>Названия позиций</span></label>
+                </div>
+            </div>
+
+            <!-- Row 2: Exclude -->
+            <div class="form-group full-width">
+                <label for="excludeText">Исключающие слова</label>
+                <input type="text" id="excludeText" placeholder="Например: junior intern стажёр">
+                <div class="checkbox-row">
+                    <span class="cb-label">Исключать из:</span>
+                    <label class="cb"><input type="checkbox" name="excludeField" value="title" checked><span>Название резюме</span></label>
+                    <label class="cb"><input type="checkbox" name="excludeField" value="skills"><span>Навыки</span></label>
+                </div>
+            </div>
+
+            <!-- Row 3: Experience, Period, Count -->
+            <div class="form-group">
+                <label>Опыт кандидата</label>
+                <div class="checkbox-col">
+                    <label class="cb"><input type="checkbox" name="experience" value="noExperience"><span>Без опыта</span></label>
+                    <label class="cb"><input type="checkbox" name="experience" value="between1And3"><span>1 – 3 года</span></label>
+                    <label class="cb"><input type="checkbox" name="experience" value="between3And6" checked><span>3 – 6 лет</span></label>
+                    <label class="cb"><input type="checkbox" name="experience" value="moreThan6"><span>Более 6 лет</span></label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="period">Период</label>
+                <select id="period">
+                    <option value="1">1 день</option>
+                    <option value="7">7 дней</option>
+                    <option value="30" selected>30 дней</option>
+                    <option value="90">90 дней</option>
+                    <option value="180">180 дней</option>
+                    <option value="365">365 дней</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="count">Количество кандидатов</label>
+                <input type="number" id="count" value="50" min="1" max="2000">
+                <span class="hint">Макс. 2000</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button id="btnSearch" class="btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Найти
+            </button>
+        </div>
+    </section>
+
+    <!-- Results -->
+    <section class="results-card" id="resultsSection" style="display:none;">
+        <div class="results-header">
+            <h2>Результаты <span id="resultsMeta"></span></h2>
+            <button id="btnExport" class="btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Выгрузить CSV
+            </button>
+        </div>
+        <div class="table-wrapper">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th class="th-photo">Фото</th>
+                        <th>Полное имя</th>
+                        <th>Должность</th>
+                        <th>Локация</th>
+                        <th>Опыт</th>
+                        <th>Зарплата</th>
+                        <th>Ссылка</th>
+                        <th>Обновлено</th>
+                        <th>Дата выгрузки</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Loading -->
+    <div id="loader" class="loader" style="display:none;">
+        <div class="spinner"></div>
+        <p>Поиск кандидатов...</p>
+    </div>
+
+    <!-- Error -->
+    <div id="errorBox" class="error-box" style="display:none;"></div>
+</main>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
