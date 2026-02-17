@@ -16,6 +16,8 @@ COPY alembic.ini .
 COPY alembic/ alembic/
 COPY app/ app/
 COPY linkedin_api/ linkedin_api/
+COPY static/ static/
+COPY templates/ templates/
 COPY create_admin.py .
 
 EXPOSE 8000
