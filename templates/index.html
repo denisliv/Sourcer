@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AlfaHRSourcer</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -16,73 +17,104 @@
             </svg>
             <span>AlfaHR<b>Sourcer</b></span>
         </div>
+        <nav style="margin-left:auto;display:flex;gap:1.25rem;align-items:center;">
+            <a href="/" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:600;">Поиск</a>
+            <a href="/account" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;">Личный кабинет</a>
+            <a id="adminLink" href="/admin/users" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;display:none;">Пользователи</a>
+            <button id="btnLogout" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:0.3rem 0.85rem;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:500;">Выйти</button>
+        </nav>
     </div>
 </header>
 
 <main>
     <!-- Search form -->
     <section class="search-card">
-        <h2>Поиск кандидатов</h2>
-
-        <div class="form-grid">
-            <!-- Row 1: Position search -->
-            <div class="form-group full-width">
-                <label for="searchText">Название позиции</label>
-                <input type="text" id="searchText" placeholder="Например: Python developer" autocomplete="off">
-                <div class="checkbox-row">
-                    <span class="cb-label">Искать в:</span>
-                    <label class="cb"><input type="checkbox" name="searchField" value="title" checked><span>Название резюме</span></label>
-                    <label class="cb"><input type="checkbox" name="searchField" value="skills"><span>Навыки</span></label>
-                    <label class="cb"><input type="checkbox" name="searchField" value="experience_position"><span>Названия позиций</span></label>
-                </div>
-            </div>
-
-            <!-- Row 2: Exclude -->
-            <div class="form-group full-width">
-                <label for="excludeText">Исключающие слова</label>
-                <input type="text" id="excludeText" placeholder="Например: junior intern стажёр">
-                <div class="checkbox-row">
-                    <span class="cb-label">Исключать из:</span>
-                    <label class="cb"><input type="checkbox" name="excludeField" value="title" checked><span>Название резюме</span></label>
-                    <label class="cb"><input type="checkbox" name="excludeField" value="skills"><span>Навыки</span></label>
-                </div>
-            </div>
-
-            <!-- Row 3: Experience, Period, Count -->
-            <div class="form-group">
-                <label>Опыт кандидата</label>
-                <div class="checkbox-col">
-                    <label class="cb"><input type="checkbox" name="experience" value="noExperience"><span>Без опыта</span></label>
-                    <label class="cb"><input type="checkbox" name="experience" value="between1And3"><span>1 – 3 года</span></label>
-                    <label class="cb"><input type="checkbox" name="experience" value="between3And6" checked><span>3 – 6 лет</span></label>
-                    <label class="cb"><input type="checkbox" name="experience" value="moreThan6"><span>Более 6 лет</span></label>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="period">Период</label>
-                <select id="period">
-                    <option value="1">1 день</option>
-                    <option value="7">7 дней</option>
-                    <option value="30" selected>30 дней</option>
-                    <option value="90">90 дней</option>
-                    <option value="180">180 дней</option>
-                    <option value="365">365 дней</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="count">Количество кандидатов</label>
-                <input type="number" id="count" value="50" min="1" max="2000">
-                <span class="hint">Макс. 2000</span>
+        <div class="sources-row">
+            <label class="sources-label">Источники поиска:</label>
+            <div class="sources-chips">
+                <label class="chip sources-chip"><input type="radio" name="sources" value="hh"><span>Только HH</span></label>
+                <label class="chip sources-chip"><input type="radio" name="sources" value="linkedin"><span>Только LinkedIn</span></label>
+                <label class="chip sources-chip"><input type="radio" name="sources" value="both" checked><span>HH + LinkedIn</span></label>
             </div>
         </div>
-
-        <div class="actions">
+        <div class="search-header">
+            <h2>Поиск кандидатов</h2>
             <button id="btnSearch" class="btn-primary">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                 Найти
             </button>
+        </div>
+
+        <div class="search-form">
+            <div class="search-row-main">
+                <div class="form-group form-group-search">
+                    <label for="searchText">Поиск в названии резюме</label>
+                    <div class="search-input-row">
+                        <input type="text" id="searchText" placeholder="Например: Python developer" autocomplete="off">
+                        <label class="cb cb-attached"><input type="checkbox" id="searchInPositions" name="searchInPositions"><span>Искать в должностях</span></label>
+                    </div>
+                </div>
+                <div class="form-group form-group-skills">
+                    <label for="searchSkills">Навыки</label>
+                    <input type="text" id="searchSkills" placeholder="Python, Django, SQL" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="search-row-exclude">
+                <label class="search-row-label">Исключить</label>
+                <input type="text" id="excludeTitle" placeholder="Из названия резюме" autocomplete="off">
+                <input type="text" id="excludeCompany" placeholder="Компанию / отрасль" autocomplete="off">
+            </div>
+
+            <div class="search-row-filters">
+                <div class="form-group form-group-experience">
+                    <label>Опыт</label>
+                    <div class="experience-chips">
+                        <label class="chip"><input type="checkbox" name="experience" value="noExperience"><span>Без опыта</span></label>
+                        <label class="chip"><input type="checkbox" name="experience" value="between1And3"><span>1–3 года</span></label>
+                        <label class="chip"><input type="checkbox" name="experience" value="between3And6" checked><span>3–6 лет</span></label>
+                        <label class="chip"><input type="checkbox" name="experience" value="moreThan6"><span>6+ лет</span></label>
+                    </div>
+                </div>
+                <div class="filters-inline">
+                    <div class="form-group">
+                        <label for="area">Регион</label>
+                        <select id="area">
+                            <option value="16" selected>Беларусь</option>
+                            <option value="1007">Брест</option>
+                            <option value="2233">Брестская область</option>
+                            <option value="1005">Витебск</option>
+                            <option value="2234">Витебская область</option>
+                            <option value="1003">Гомель</option>
+                            <option value="2235">Гомельская область</option>
+                            <option value="1006">Гродно</option>
+                            <option value="2236">Гродненская область</option>
+                            <option value="1002">Минск</option>
+                            <option value="2237">Минская область</option>
+                            <option value="1004">Могилев</option>
+                            <option value="2238">Могилевская область</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="period">Период</label>
+                        <select id="period">
+                            <option value="1">1 день</option>
+                            <option value="7">7 дней</option>
+                            <option value="30" selected>30 дней</option>
+                            <option value="90">90 дней</option>
+                            <option value="180">180 дней</option>
+                            <option value="365">365 дней</option>
+                        </select>
+                    </div>
+                    <div class="form-group form-group-count">
+                        <label for="count">Количество</label>
+                        <div class="count-input-wrap">
+                            <input type="number" id="count" value="100" min="1" max="2000" placeholder="100">
+                            <span class="hint">макс. 2000</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -99,6 +131,7 @@
             <table id="resultsTable">
                 <thead>
                     <tr>
+                        <th class="th-source">Источник</th>
                         <th class="th-photo">Фото</th>
                         <th>Полное имя</th>
                         <th>Должность</th>
@@ -113,6 +146,13 @@
                 <tbody id="resultsBody"></tbody>
             </table>
         </div>
+        <div class="results-pagination">
+            <span id="resultsPaginationMeta"></span>
+            <div class="pagination-buttons">
+                <button id="resultsPrev" class="btn-outline btn-sm">← Назад</button>
+                <button id="resultsNext" class="btn-outline btn-sm">Далее →</button>
+            </div>
+        </div>
     </section>
 
     <!-- Loading -->
@@ -125,6 +165,17 @@
     <div id="errorBox" class="error-box" style="display:none;"></div>
 </main>
 
-<script src="/static/script.js"></script>
+<script>
+document.getElementById("btnLogout").addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+});
+// Load user info and show admin link if needed
+fetch("/api/auth/me", { credentials: "include" })
+    .then(r => { if (!r.ok) { window.location.href = "/login"; throw new Error("unauth"); } return r.json(); })
+    .then(u => { if (u.is_admin) document.getElementById("adminLink").style.display = ""; })
+    .catch(() => {});
+</script>
+<script src="/static/script.js?v=5"></script>
 </body>
 </html>

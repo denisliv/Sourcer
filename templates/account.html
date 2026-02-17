@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRSourcer — Личный кабинет</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .account-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        .account-card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            padding: 1.75rem 2rem;
+        }
+        .account-card h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .account-card .form-group {
+            margin-bottom: 1rem;
+        }
+        .account-card label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.82rem;
+            color: var(--gray-600);
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .account-card input[type="text"],
+        .account-card input[type="password"],
+        .account-card input[type="email"] {
+            width: 100%;
+            padding: 0.6rem 0.85rem;
+            border: 1.5px solid var(--blue-200);
+            border-radius: 8px;
+            font-size: 0.92rem;
+            color: var(--gray-800);
+            background: var(--blue-50);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .account-card input:focus {
+            border-color: var(--blue-400);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, .2);
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+            font-weight: 500;
+        }
+        .info-value {
+            font-size: 0.9rem;
+            color: var(--gray-800);
+            font-weight: 500;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-error { background: #fef2f2; color: #b91c1c; }
+        .status-not_configured { background: var(--gray-100); color: var(--gray-500); }
+        .status-expired { background: #fef9c3; color: #854d0e; }
+
+        .full-span { grid-column: 1 / -1; }
+
+        .success-msg {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #166534;
+            border-radius: 8px;
+            padding: 0.65rem 1rem;
+            font-size: 0.88rem;
+            margin-bottom: 0.75rem;
+            display: none;
+        }
+        .error-msg {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+            border-radius: 8px;
+            padding: 0.65rem 1rem;
+            font-size: 0.88rem;
+            margin-bottom: 0.75rem;
+            display: none;
+        }
+        .must-change-banner {
+            background: #fef9c3;
+            border: 1px solid #fde047;
+            color: #854d0e;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            font-size: 0.92rem;
+            margin-bottom: 1.25rem;
+            font-weight: 500;
+        }
+        .btn-sm {
+            padding: 0.45rem 1rem;
+            font-size: 0.85rem;
+        }
+        .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.45rem 1rem;
+            background: #fff;
+            color: #b91c1c;
+            border: 1.5px solid #fca5a5;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-danger:hover { background: #fef2f2; }
+
+        .actions-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        /* Logs table */
+        .logs-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .logs-table th {
+            text-align: left;
+            padding: 0.5rem 0.65rem;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--gray-500);
+            border-bottom: 2px solid var(--blue-200);
+            background: var(--blue-50);
+        }
+        .logs-table td {
+            padding: 0.45rem 0.65rem;
+            border-bottom: 1px solid var(--gray-100);
+            color: var(--gray-700);
+        }
+        .logs-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+        .logs-filter {
+            margin-bottom: 0.75rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .logs-filter select {
+            padding: 0.35rem 0.65rem;
+            border: 1.5px solid var(--blue-200);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background: var(--blue-50);
+            color: var(--gray-700);
+            outline: none;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.25rem;
+        }
+        .nav-tab {
+            padding: 0.55rem 1.25rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--gray-500);
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .nav-tab:hover { color: var(--gray-700); }
+        .nav-tab.active {
+            color: var(--blue-600);
+            border-bottom-color: var(--blue-600);
+        }
+
+        @media (max-width: 768px) {
+            .account-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <span>AlfaHR<b>Sourcer</b></span>
+        </div>
+        <nav style="margin-left:auto;display:flex;gap:1.25rem;align-items:center;">
+            <a href="/" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;">Поиск</a>
+            <a href="/account" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:600;">Личный кабинет</a>
+            <a id="adminLink" href="/admin/users" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;display:none;">Пользователи</a>
+            <button id="btnLogout" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:0.3rem 0.85rem;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:500;">Выйти</button>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <div id="mustChangeBanner" class="must-change-banner" style="display:none;">
+        Вам необходимо сменить пароль по умолчанию. Пожалуйста, установите новый пароль ниже.
+    </div>
+
+    <div class="account-grid">
+        <!-- Profile -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Профиль
+            </h3>
+            <div class="info-row">
+                <span class="info-label">Имя</span>
+                <span class="info-value" id="profileName">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value" id="profileEmail">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Роль</span>
+                <span class="info-value" id="profileRole">—</span>
+            </div>
+        </div>
+
+        <!-- Change password -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Смена пароля
+            </h3>
+            <div id="pwdSuccess" class="success-msg"></div>
+            <div id="pwdError" class="error-msg"></div>
+            <form id="passwordForm">
+                <div class="form-group">
+                    <label for="currentPassword">Текущий пароль</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Новый пароль</label>
+                    <input type="password" id="newPassword" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Подтверждение</label>
+                    <input type="password" id="confirmPassword" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary btn-sm">Сменить пароль</button>
+            </form>
+        </div>
+
+        <!-- HH Credentials (OAuth) -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                HeadHunter
+            </h3>
+            <div class="info-row" style="margin-bottom:0.75rem;">
+                <span class="info-label">Статус</span>
+                <span id="hhStatusBadge" class="status-badge status-not_configured">Загрузка...</span>
+            </div>
+            <div id="hhExpiresRow" class="info-row" style="margin-bottom:0.75rem;display:none;">
+                <span class="info-label">Токен действителен до</span>
+                <span class="info-value" id="hhExpiresAt"></span>
+            </div>
+            <div id="hhSuccess" class="success-msg"></div>
+            <div id="hhError" class="error-msg"></div>
+            <p id="hhDescription" style="font-size:0.85rem;color:var(--gray-500);margin-bottom:0.75rem;"></p>
+            <div id="hhActions" class="actions-row"></div>
+        </div>
+
+        <!-- LinkedIn Credentials -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+                LinkedIn
+            </h3>
+            <div class="info-row" style="margin-bottom:0.75rem;">
+                <span class="info-label">Статус</span>
+                <span id="liStatusBadge" class="status-badge status-not_configured">Загрузка...</span>
+            </div>
+            <div id="liUsernameRow" class="info-row" style="margin-bottom:0.75rem;display:none;">
+                <span class="info-label">Логин</span>
+                <span class="info-value" id="liUsernameVal"></span>
+            </div>
+            <div id="liSuccess" class="success-msg"></div>
+            <div id="liError" class="error-msg"></div>
+            <form id="liForm">
+                <div class="form-group">
+                    <label for="liUsername">Email / Логин</label>
+                    <input type="text" id="liUsername" placeholder="LinkedIn email" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="liPassword">Пароль</label>
+                    <input type="password" id="liPassword" placeholder="LinkedIn пароль">
+                </div>
+                <div class="actions-row">
+                    <button type="submit" class="btn-primary btn-sm">Подключить</button>
+                    <button type="button" id="btnDeleteLI" class="btn-danger btn-sm">Отключить</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Logs -->
+        <div class="account-card full-span">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Журнал действий
+            </h3>
+            <div class="logs-filter">
+                <label style="font-size:0.82rem;color:var(--gray-500);font-weight:500;">Фильтр:</label>
+                <select id="logFilter">
+                    <option value="">Все действия</option>
+                    <option value="login">Вход</option>
+                    <option value="logout">Выход</option>
+                    <option value="search">Поиск</option>
+                    <option value="export_csv">Экспорт CSV</option>
+                    <option value="password_change">Смена пароля</option>
+                    <option value="credential_update">Обновление credentials</option>
+                    <option value="credential_delete">Удаление credentials</option>
+                </select>
+            </div>
+            <div class="table-wrapper">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Дата / время</th>
+                            <th>Действие</th>
+                            <th>Детали</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsBody">
+                        <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:1.5rem;">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="logs-pagination">
+                <span id="logsMeta"></span>
+                <div>
+                    <button id="logsPrev" class="btn-outline btn-sm" disabled>&larr; Назад</button>
+                    <button id="logsNext" class="btn-outline btn-sm">Далее &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+// --- Helpers ---
+function showMsg(el, msg) { el.textContent = msg; el.style.display = "block"; }
+function hideMsg(el) { el.style.display = "none"; }
+
+async function apiPost(url, data) {
+    const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    });
+    return { resp, data: await resp.json() };
+}
+async function apiDelete(url) {
+    const resp = await fetch(url, { method: "DELETE" });
+    return { resp, data: await resp.json() };
+}
+
+// --- Logout ---
+document.getElementById("btnLogout").addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+});
+
+// --- Password change ---
+document.getElementById("passwordForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const s = document.getElementById("pwdSuccess");
+    const err = document.getElementById("pwdError");
+    hideMsg(s); hideMsg(err);
+
+    const newPwd = document.getElementById("newPassword").value;
+    const confirm = document.getElementById("confirmPassword").value;
+    if (newPwd !== confirm) {
+        showMsg(err, "Пароли не совпадают");
+        return;
+    }
+
+    const result = await apiPost("/api/account/password", {
+        current_password: document.getElementById("currentPassword").value,
+        new_password: newPwd,
+    });
+    if (!result.resp.ok) {
+        showMsg(err, result.data.detail || "Ошибка");
+    } else {
+        showMsg(s, result.data.message || "Пароль изменён");
+        e.target.reset();
+    }
+});
+
+// --- LinkedIn credentials ---
+document.getElementById("liForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const s = document.getElementById("liSuccess");
+    const err = document.getElementById("liError");
+    hideMsg(s); hideMsg(err);
+
+    const username = document.getElementById("liUsername").value.trim();
+    const password = document.getElementById("liPassword").value;
+    if (!username || !password) { showMsg(err, "Заполните все поля"); return; }
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const origLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Авторизация…";
+
+    try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 360_000);
+        const resp = await fetch("/api/account/credentials/linkedin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+            signal: controller.signal,
+        });
+        clearTimeout(tid);
+        const data = await resp.json();
+        if (!resp.ok) {
+            showMsg(err, data.detail || "Ошибка");
+        } else if (data.cookies_failed) {
+            showMsg(err, data.message);
+        } else {
+            showMsg(s, data.message || "Сохранено");
+            document.getElementById("liPassword").value = "";
+            setTimeout(() => location.reload(), 1200);
+        }
+    } catch (fetchErr) {
+        if (fetchErr.name === "AbortError") {
+            showMsg(err, "Превышено время ожидания. Попробуйте ещё раз.");
+        } else {
+            showMsg(err, "Ошибка сети: " + fetchErr.message);
+        }
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origLabel;
+    }
+});
+
+document.getElementById("btnDeleteLI").addEventListener("click", async () => {
+    if (!confirm("Отключить LinkedIn?")) return;
+    const result = await apiDelete("/api/account/credentials/linkedin");
+    if (result.resp.ok) location.reload();
+});
+
+// --- Logs ---
+const ACTION_LABELS = {
+    login: "Вход",
+    logout: "Выход",
+    search: "Поиск",
+    export_csv: "Экспорт CSV",
+    password_change: "Смена пароля",
+    credential_update: "Обн. credentials",
+    credential_delete: "Удал. credentials",
+    admin_create_user: "Создание пользователя",
+};
+
+let logsPage = 1;
+
+async function loadLogs(page = 1) {
+    const filter = document.getElementById("logFilter").value;
+    let url = `/api/account/logs?page=${page}&per_page=15`;
+    if (filter) url += `&action=${filter}`;
+
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    const tbody = document.getElementById("logsBody");
+    tbody.innerHTML = "";
+
+    if (!data.logs || data.logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:1.5rem;">Нет записей</td></tr>';
+    } else {
+        data.logs.forEach(log => {
+            const tr = document.createElement("tr");
+            const dt = log.created_at ? new Date(log.created_at) : null;
+            const dtStr = dt ? dt.toLocaleString("ru-RU", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "—";
+
+            let details = "";
+            if (log.details) {
+                if (log.details.query) details = `Запрос: "${log.details.query}"`;
+                else if (log.details.message) details = log.details.message;
+                else details = JSON.stringify(log.details).substring(0, 80);
+            }
+
+            tr.innerHTML = `
+                <td style="white-space:nowrap;">${dtStr}</td>
+                <td>${ACTION_LABELS[log.action] || log.action}</td>
+                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${details || "—"}</td>
+                <td style="white-space:nowrap;">${log.ip_address || "—"}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    logsPage = page;
+    const totalPages = Math.ceil(data.total / data.per_page) || 1;
+    document.getElementById("logsMeta").textContent = `Стр. ${page} из ${totalPages} (всего ${data.total})`;
+    document.getElementById("logsPrev").disabled = page <= 1;
+    document.getElementById("logsNext").disabled = page >= totalPages;
+}
+
+document.getElementById("logFilter").addEventListener("change", () => loadLogs(1));
+document.getElementById("logsPrev").addEventListener("click", () => loadLogs(logsPage - 1));
+document.getElementById("logsNext").addEventListener("click", () => loadLogs(logsPage + 1));
+
+// Load logs on page open
+loadLogs(1);
+
+// --- Load account status (replaces Jinja2) ---
+(async function loadAccountStatus() {
+    try {
+        const resp = await fetch("/api/account/status", { credentials: "include" });
+        if (!resp.ok) { window.location.href = "/login"; return; }
+        const data = await resp.json();
+        const u = data.user;
+
+        // Profile
+        document.getElementById("profileName").textContent = u.full_name || "—";
+        document.getElementById("profileEmail").textContent = u.email;
+        document.getElementById("profileRole").textContent = u.is_admin ? "Администратор" : "Пользователь";
+        if (u.is_admin) document.getElementById("adminLink").style.display = "";
+        if (u.must_change_password) document.getElementById("mustChangeBanner").style.display = "";
+
+        // HH status
+        const hhBadge = document.getElementById("hhStatusBadge");
+        const hhLabels = { active: "Подключён", error: "Ошибка", expired: "Токен истёк", not_configured: "Не подключён" };
+        hhBadge.textContent = hhLabels[data.hh_status] || "Не подключён";
+        hhBadge.className = "status-badge status-" + data.hh_status;
+
+        if (data.hh_expires_at) {
+            document.getElementById("hhExpiresRow").style.display = "";
+            document.getElementById("hhExpiresAt").textContent = data.hh_expires_at;
+        }
+
+        const hhDescs = {
+            not_configured: "Для работы с HH необходимо авторизовать ваш аккаунт. Нажмите кнопку ниже — вы будете перенаправлены на страницу авторизации HeadHunter.",
+            expired: "Срок действия токена истёк. Переподключите аккаунт для продолжения работы.",
+            active: "Аккаунт подключён. Токен обновляется автоматически.",
+        };
+        document.getElementById("hhDescription").textContent = hhDescs[data.hh_status] || "Произошла ошибка. Попробуйте переподключить аккаунт.";
+
+        // HH actions
+        const hhActions = document.getElementById("hhActions");
+        const needConnect = ["not_configured", "expired", "error"].includes(data.hh_status);
+        let actionsHtml = "";
+
+        if (!data.is_production) {
+            // Dev mode: open HH authorize in new tab + manual code entry
+            actionsHtml += '<button type="button" id="btnHHDevAuth" class="btn-primary btn-sm">'
+                + (needConnect ? 'Подключить HH (dev)' : 'Переподключить (dev)') + '</button>';
+            actionsHtml += '<div id="hhDevCodeBlock" style="margin-top:0.75rem;display:none;">'
+                + '<p style="font-size:0.82rem;color:var(--gray-600);margin-bottom:0.5rem;">'
+                + 'После авторизации на HH скопируйте параметр <code>code</code> из адресной строки и вставьте сюда:'
+                + '</p>'
+                + '<div style="display:flex;gap:0.5rem;align-items:center;">'
+                + '<input type="text" id="hhDevCodeInput" placeholder="Вставьте code" style="flex:1;padding:0.5rem 0.75rem;border:1.5px solid var(--blue-200);border-radius:8px;font-size:0.9rem;">'
+                + '<button type="button" id="btnHHDevSubmit" class="btn-primary btn-sm">Обменять код</button>'
+                + '</div>'
+                + '<div id="hhDevError" class="msg msg-error" style="display:none;margin-top:0.5rem;"></div>'
+                + '</div>';
+        } else {
+            // Production: standard redirect flow
+            if (needConnect) {
+                actionsHtml += '<a href="/api/account/hh/authorize" class="btn-primary btn-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem;">Подключить HH аккаунт</a>';
+            } else {
+                actionsHtml += '<a href="/api/account/hh/authorize" class="btn-outline btn-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem;">Переподключить</a>';
+            }
+        }
+
+        if (data.hh_status !== "not_configured") {
+            actionsHtml += '<button type="button" id="btnDeleteHH" class="btn-danger btn-sm">Отключить</button>';
+        }
+        hhActions.innerHTML = actionsHtml;
+
+        // Dev mode: wire up dev auth buttons
+        const btnDevAuth = document.getElementById("btnHHDevAuth");
+        if (btnDevAuth) {
+            btnDevAuth.addEventListener("click", async () => {
+                document.getElementById("hhDevCodeBlock").style.display = "block";
+                try {
+                    const r = await fetch("/api/account/hh/authorize-url", { credentials: "include" });
+                    if (r.ok) {
+                        const d = await r.json();
+                        window.open(d.url, "_blank");
+                    }
+                } catch (e) { console.error(e); }
+            });
+        }
+        const btnDevSubmit = document.getElementById("btnHHDevSubmit");
+        if (btnDevSubmit) {
+            btnDevSubmit.addEventListener("click", async () => {
+                const code = document.getElementById("hhDevCodeInput").value.trim();
+                const errEl = document.getElementById("hhDevError");
+                errEl.style.display = "none";
+                if (!code) { errEl.textContent = "Введите код"; errEl.style.display = ""; return; }
+                btnDevSubmit.disabled = true;
+                btnDevSubmit.textContent = "Обмен...";
+                try {
+                    const r = await fetch("/api/account/hh/dev-code", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ code }),
+                    });
+                    const d = await r.json();
+                    if (r.ok && d.ok) {
+                        location.href = "/account?hh_connected=1";
+                    } else {
+                        errEl.textContent = d.detail || d.message || "Ошибка обмена кода";
+                        errEl.style.display = "";
+                    }
+                } catch (e) {
+                    errEl.textContent = "Сетевая ошибка: " + e.message;
+                    errEl.style.display = "";
+                } finally {
+                    btnDevSubmit.disabled = false;
+                    btnDevSubmit.textContent = "Обменять код";
+                }
+            });
+        }
+
+        const btnDelHH = document.getElementById("btnDeleteHH");
+        if (btnDelHH) btnDelHH.addEventListener("click", async () => {
+            if (!confirm("Отключить HH аккаунт?")) return;
+            const r = await apiDelete("/api/account/credentials/hh");
+            if (r.resp.ok) location.reload();
+        });
+
+        // Check URL params for hh_connected / hh_error
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("hh_connected")) showMsg(document.getElementById("hhSuccess"), "HH аккаунт успешно подключён!");
+        if (params.get("hh_error")) showMsg(document.getElementById("hhError"), params.get("hh_error"));
+
+        // LinkedIn status
+        const liBadge = document.getElementById("liStatusBadge");
+        const liLabels = { active: "Активен", error: "Ошибка", expired: "Cookies истекли", not_configured: "Не настроен" };
+        liBadge.textContent = liLabels[data.li_status] || "Не настроен";
+        liBadge.className = "status-badge status-" + data.li_status;
+
+        if (data.li_username) {
+            document.getElementById("liUsernameRow").style.display = "";
+            document.getElementById("liUsernameVal").textContent = data.li_username;
+        }
+    } catch (e) {
+        console.error("Failed to load account status:", e);
+    }
+})();
+</script>
+</body>
+</html>

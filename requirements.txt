@@ -2,5 +2,19 @@ fastapi>=0.115.0
 uvicorn>=0.34.0
 httpx>=0.28.0
 jinja2>=3.1.4
-pyyaml>=6.0.2
 python-multipart>=0.0.18
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+bcrypt>=4.2.0
+cryptography>=44.0.0
+python-dotenv>=1.0.1
+# LinkedIn API (linkedin_api local package)
+requests>=2.32.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+playwright>=1.49.0
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+aiosqlite>=0.20.0

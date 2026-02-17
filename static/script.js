@@ -4,36 +4,48 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultsSection = document.getElementById("resultsSection");
     const resultsBody = document.getElementById("resultsBody");
     const resultsMeta = document.getElementById("resultsMeta");
+    const resultsPaginationMeta = document.getElementById("resultsPaginationMeta");
+    const resultsPrev = document.getElementById("resultsPrev");
+    const resultsNext = document.getElementById("resultsNext");
     const loader = document.getElementById("loader");
     const errorBox = document.getElementById("errorBox");
 
-    // Collect form data
-    function getFormData() {
-        const searchText = document.getElementById("searchText").value.trim();
-        const excludeText = document.getElementById("excludeText").value.trim();
-        const period = document.getElementById("period").value;
-        const count = document.getElementById("count").value;
+    const PER_PAGE = 20;
+    let allCandidates = [];
+    let currentPage = 1;
+    let lastSearchId = null;
 
-        const searchFields = [...document.querySelectorAll('input[name="searchField"]:checked')]
-            .map(el => el.value);
-        const excludeFields = [...document.querySelectorAll('input[name="excludeField"]:checked')]
-            .map(el => el.value);
+    // Collect form data (with fallbacks for cached HTML)
+    function getFormData() {
+        const searchText = (document.getElementById("searchText")?.value ?? "").trim();
+        const searchInPositions = document.getElementById("searchInPositions")?.checked ?? false;
+        const searchSkills = (document.getElementById("searchSkills")?.value ?? "").trim();
+        const excludeTitle = (document.getElementById("excludeTitle")?.value ?? "").trim();
+        const excludeCompany = (document.getElementById("excludeCompany")?.value ?? "").trim();
+        const area = document.getElementById("area")?.value ?? "16";
+        const period = document.getElementById("period")?.value ?? "30";
+        const count = document.getElementById("count")?.value ?? "50";
+        const sources = (document.querySelector('input[name="sources"]:checked')?.value ?? "both");
+
         const experience = [...document.querySelectorAll('input[name="experience"]:checked')]
             .map(el => el.value);
 
-        return { searchText, searchFields, excludeText, excludeFields, experience, period, count };
+        return { searchText, searchInPositions, searchSkills, excludeTitle, excludeCompany, experience, area, period, count, sources };
     }
 
-    // Build query string supporting repeated params
+    // Build query string
     function buildQuery(data) {
         const params = new URLSearchParams();
         params.append("search_text", data.searchText);
-        data.searchFields.forEach(f => params.append("search_fields", f));
-        params.append("exclude_text", data.excludeText);
-        data.excludeFields.forEach(f => params.append("exclude_fields", f));
+        params.append("search_in_positions", data.searchInPositions ? "true" : "false");
+        params.append("search_skills", data.searchSkills);
+        params.append("exclude_title", data.excludeTitle);
+        params.append("exclude_company", data.excludeCompany);
         data.experience.forEach(e => params.append("experience", e));
+        params.append("area", data.area);
         params.append("period", data.period);
         params.append("count", data.count);
+        params.append("sources", data.sources || "both");
         return params.toString();
     }
 
@@ -49,11 +61,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Render table
+    // Render table (with pagination - only current page slice)
     function renderTable(candidates) {
         resultsBody.innerHTML = "";
-        candidates.forEach((c, idx) => {
+        const totalPages = Math.max(1, Math.ceil(candidates.length / PER_PAGE));
+        const start = (currentPage - 1) * PER_PAGE;
+        const end = Math.min(start + PER_PAGE, candidates.length);
+        const pageCandidates = candidates.slice(start, end);
+
+        pageCandidates.forEach((c) => {
             const tr = document.createElement("tr");
+
+            // Source
+            const tdSource = document.createElement("td");
+            const src = c.source || "hh";
+            const span = document.createElement("span");
+            span.className = `source-badge ${src}`;
+            span.textContent = src === "linkedin" ? "LI" : "HH";
+            tdSource.appendChild(span);
+            tr.appendChild(tdSource);
 
             // Photo
             const tdPhoto = document.createElement("td");
@@ -128,18 +154,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
             resultsBody.appendChild(tr);
         });
+
+        // Pagination meta & buttons
+        const rangeStr = candidates.length > 0
+            ? `показано ${start + 1}–${end} из ${candidates.length}`
+            : "нет результатов";
+        resultsPaginationMeta.textContent = `Стр. ${currentPage} из ${totalPages} (${rangeStr})`;
+        resultsPrev.disabled = currentPage <= 1;
+        resultsNext.disabled = currentPage >= totalPages;
+    }
+
+    function goToPage(page) {
+        const totalPages = Math.max(1, Math.ceil(allCandidates.length / PER_PAGE));
+        currentPage = Math.max(1, Math.min(page, totalPages));
+        renderTable(allCandidates);
     }
 
     // Search
     btnSearch.addEventListener("click", async () => {
         const data = getFormData();
 
-        if (!data.searchText) {
-            showError("Введите название позиции");
-            return;
-        }
-        if (data.searchFields.length === 0) {
-            showError("Выберите хотя бы одну область поиска");
+        if (!data.searchText && !data.searchSkills) {
+            showError("Укажите поисковый запрос (название резюме или навыки)");
             return;
         }
 
@@ -150,7 +186,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const qs = buildQuery(data);
-            const resp = await fetch(`/api/search?${qs}`);
+            const resp = await fetch(`/api/search?${qs}`, { credentials: "include" });
+            if (!resp.ok) {
+                const errText = await resp.text();
+                let errMsg = `Ошибка ${resp.status}`;
+                try {
+                    const errJson = JSON.parse(errText);
+                    errMsg = errJson.detail || errJson.message || errMsg;
+                } catch {}
+                showError(typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg));
+                return;
+            }
             const json = await resp.json();
 
             if (json.error) {
@@ -158,8 +204,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            renderTable(json.candidates);
-            resultsMeta.textContent = `(найдено ${json.total_found}, показано ${json.returned})`;
+            allCandidates = json.candidates || [];
+            lastSearchId = json.search_id || null;
+            currentPage = 1;
+            renderTable(allCandidates);
+            resultsMeta.textContent = `(найдено ${json.total_found})`;
             resultsSection.style.display = "block";
 
             resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -173,10 +222,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Export CSV
     btnExport.addEventListener("click", () => {
-        const data = getFormData();
-        if (!data.searchText) return;
-        const qs = buildQuery(data);
-        window.open(`/api/export?${qs}`, "_blank");
+        if (!lastSearchId) return;
+        window.open(`/api/export?search_id=${encodeURIComponent(lastSearchId)}`, "_blank");
     });
 
     // Helpers
@@ -190,8 +237,14 @@ document.addEventListener("DOMContentLoaded", () => {
         errorBox.style.display = "none";
     }
 
+    // Pagination
+    resultsPrev.addEventListener("click", () => goToPage(currentPage - 1));
+    resultsNext.addEventListener("click", () => goToPage(currentPage + 1));
+
     // Enter key triggers search
-    document.getElementById("searchText").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") btnSearch.click();
+    ["searchText", "searchSkills"].forEach(id => {
+        document.getElementById(id)?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") btnSearch.click();
+        });
     });
 });

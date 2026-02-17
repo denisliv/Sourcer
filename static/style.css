@@ -106,7 +106,264 @@ main {
     color: var(--gray-500);
 }
 
-/* ===== Form Grid ===== */
+/* ===== Sources switcher ===== */
+.sources-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+.sources-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+.sources-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.sources-chips .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--blue-50);
+    border: 1.5px solid var(--blue-200);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--gray-700);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+.sources-chips .chip:hover { border-color: var(--blue-300); background: var(--blue-100); }
+.sources-chips .chip:has(input:checked) {
+    background: var(--blue-100);
+    border-color: var(--blue-400);
+    color: var(--blue-700);
+}
+.sources-chips .chip input { display: none; }
+
+.th-source { width: 100px; }
+
+.source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.source-badge.hh { background: #dbeafe; color: #1d4ed8; }
+.source-badge.linkedin { background: #e0e7ff; color: #3730a3; }
+
+/* ===== Search Form Layout ===== */
+.search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.search-header h2 {
+    margin-bottom: 0;
+}
+
+.search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* Поиск + Навыки — чёткое разделение, checkbox привязан к полю */
+.search-row-main {
+    display: grid;
+    grid-template-columns: 1fr minmax(200px, 320px);
+    gap: 1.5rem;
+    align-items: end;
+}
+
+.form-group-search {
+    flex: 1;
+}
+
+.search-input-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 0.4rem;
+}
+
+.search-input-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.cb-attached {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.form-group-skills {
+    min-width: 0;
+}
+
+.form-group-skills input {
+    margin-top: 0.4rem;
+}
+
+/* Блок исключений */
+.search-row-exclude {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--blue-50);
+    border-radius: 8px;
+    border: 1px solid var(--blue-100);
+    flex-wrap: wrap;
+}
+
+.search-row-label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.search-row-exclude input {
+    flex: 1;
+    min-width: 180px;
+    padding: 0.5rem 0.85rem;
+    border: 1.5px solid var(--blue-200);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--gray-800);
+    background: #fff;
+    outline: none;
+}
+
+.search-row-exclude input:focus {
+    border-color: var(--blue-400);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, .2);
+}
+
+/* Фильтры: опыт + регион/период/кол-во */
+.search-row-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.form-group-experience {
+    flex: 1;
+    min-width: 280px;
+}
+
+.experience-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.experience-chips .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--blue-50);
+    border: 1.5px solid var(--blue-200);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--gray-700);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.experience-chips .chip:hover {
+    border-color: var(--blue-300);
+    background: var(--blue-100);
+}
+
+.experience-chips .chip:has(input:checked) {
+    background: var(--blue-100);
+    border-color: var(--blue-400);
+    color: var(--blue-700);
+}
+
+.experience-chips .chip input {
+    accent-color: var(--blue-600);
+    width: 16px;
+    height: 16px;
+    min-height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.experience-chips .chip span {
+    font-weight: 400;
+    text-transform: none;
+}
+
+.filters-inline {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filters-inline .form-group {
+    min-width: 0;
+}
+
+.filters-inline .form-group select {
+    min-width: 130px;
+}
+
+.form-group-count {
+    min-width: 0;
+}
+
+.count-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.count-input-wrap input {
+    width: 80px;
+}
+
+.form-group-count .hint {
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+/* ===== Form Grid (legacy / account) ===== */
 .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -125,6 +382,17 @@ main {
     margin-bottom: 0.4rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+}
+
+/* Чипы опыта — отключаем наследование от label:first-child */
+.form-group-experience .experience-chips .chip {
+    display: inline-flex;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.88rem;
+    color: var(--gray-700);
+    margin-bottom: 0;
 }
 
 .form-group input[type="text"],
@@ -150,11 +418,34 @@ main {
 .hint {
     font-size: 0.78rem;
     color: var(--gray-400);
-    margin-top: 0.2rem;
     display: inline-block;
 }
 
 /* ===== Checkboxes ===== */
+.exclude-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.exclude-row input {
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    border: 1.5px solid var(--blue-200);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--gray-800);
+    background: var(--blue-50);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+
+.exclude-row input:focus {
+    border-color: var(--blue-400);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, .2);
+}
+
 .checkbox-row,
 .checkbox-col {
     display: flex;
@@ -252,6 +543,16 @@ main {
     border-color: var(--blue-400);
 }
 
+.btn-sm {
+    padding: 0.45rem 1rem;
+    font-size: 0.85rem;
+}
+
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ===== Results ===== */
 .results-header {
     display: flex;
@@ -264,6 +565,22 @@ main {
 
 .results-header h2 {
     margin-bottom: 0;
+}
+
+.results-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-100);
+    font-size: 0.9rem;
+    color: var(--gray-500);
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .table-wrapper {
@@ -379,6 +696,56 @@ td a:hover {
 @media (max-width: 768px) {
     .form-grid {
         grid-template-columns: 1fr;
+    }
+    .search-row-main {
+        grid-template-columns: 1fr;
+    }
+    .search-input-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .search-row-exclude {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .search-row-exclude input {
+        min-width: 0;
+    }
+    .search-row-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    .form-group-experience {
+        min-width: 0;
+    }
+    .filters-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filters-inline .form-group select {
+        min-width: 0;
+        width: 100%;
+    }
+    .count-input-wrap input {
+        width: 100%;
+    }
+    .search-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .search-header .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+    .results-pagination {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+        text-align: center;
+    }
+    .pagination-buttons {
+        justify-content: center;
     }
     .search-card,
     .results-card {

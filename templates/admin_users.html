@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRSourcer — Управление пользователями</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 1.25rem;
+            align-items: start;
+        }
+        .admin-card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            padding: 1.75rem 2rem;
+        }
+        .admin-card h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .admin-card .form-group {
+            margin-bottom: 1rem;
+        }
+        .admin-card label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.82rem;
+            color: var(--gray-600);
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .admin-card input[type="text"],
+        .admin-card input[type="email"],
+        .admin-card input[type="password"] {
+            width: 100%;
+            padding: 0.6rem 0.85rem;
+            border: 1.5px solid var(--blue-200);
+            border-radius: 8px;
+            font-size: 0.92rem;
+            color: var(--gray-800);
+            background: var(--blue-50);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .admin-card input:focus {
+            border-color: var(--blue-400);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, .2);
+        }
+        .cb-inline {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.88rem;
+            color: var(--gray-700);
+            cursor: pointer;
+            user-select: none;
+            margin-top: 0.25rem;
+        }
+        .cb-inline input { accent-color: var(--blue-500); width: 16px; height: 16px; cursor: pointer; }
+
+        .success-msg {
+            background: #dcfce7; border: 1px solid #86efac; color: #166534;
+            border-radius: 8px; padding: 0.65rem 1rem; font-size: 0.88rem;
+            margin-bottom: 0.75rem; display: none;
+        }
+        .error-msg {
+            background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c;
+            border-radius: 8px; padding: 0.65rem 1rem; font-size: 0.88rem;
+            margin-bottom: 0.75rem; display: none;
+        }
+
+        /* Users table */
+        .users-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .users-table th {
+            text-align: left; padding: 0.6rem 0.75rem;
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em;
+            color: var(--gray-500); border-bottom: 2px solid var(--blue-200);
+            background: var(--blue-50); white-space: nowrap;
+        }
+        .users-table td {
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid var(--gray-100);
+            color: var(--gray-700); vertical-align: middle;
+        }
+        .users-table tbody tr:hover { background: var(--blue-50); }
+
+        .role-badge {
+            display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .role-admin { background: #dbeafe; color: #1e40af; }
+        .role-user { background: var(--gray-100); color: var(--gray-500); }
+
+        .btn-delete {
+            background: none; border: none; color: #b91c1c; cursor: pointer;
+            font-size: 0.82rem; font-weight: 500; padding: 0.25rem 0.5rem;
+            border-radius: 6px; transition: background 0.15s;
+        }
+        .btn-delete:hover { background: #fef2f2; }
+        .btn-delete:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .empty-state {
+            text-align: center; color: var(--gray-400); padding: 2rem;
+            font-size: 0.92rem;
+        }
+
+        .btn-sm { padding: 0.45rem 1rem; font-size: 0.85rem; }
+
+        @media (max-width: 860px) {
+            .admin-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <span>AlfaHR<b>Sourcer</b></span>
+        </div>
+        <nav style="margin-left:auto;display:flex;gap:1.25rem;align-items:center;">
+            <a href="/" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;">Поиск</a>
+            <a href="/account" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;">Личный кабинет</a>
+            <a href="/admin/users" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:600;">Пользователи</a>
+            <button id="btnLogout" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:0.3rem 0.85rem;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:500;">Выйти</button>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <div class="admin-grid">
+        <!-- Create user form -->
+        <div class="admin-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                Новый пользователь
+            </h3>
+            <div id="createSuccess" class="success-msg"></div>
+            <div id="createError" class="error-msg"></div>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label for="newEmail">Email</label>
+                    <input type="email" id="newEmail" required placeholder="user@example.com" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="newFullName">Имя</label>
+                    <input type="text" id="newFullName" placeholder="Иванов Иван">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Пароль</label>
+                    <input type="password" id="newPassword" required minlength="4" placeholder="Временный пароль">
+                </div>
+                <div class="form-group">
+                    <label class="cb-inline">
+                        <input type="checkbox" id="newIsAdmin">
+                        <span>Администратор</span>
+                    </label>
+                </div>
+                <button type="submit" class="btn-primary btn-sm" id="btnCreate">Создать</button>
+            </form>
+        </div>
+
+        <!-- Users table -->
+        <div class="admin-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Все пользователи
+            </h3>
+            <div class="table-wrapper">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Имя</th>
+                            <th>Роль</th>
+                            <th>Пароль</th>
+                            <th>Создан</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody">
+                        <tr><td colspan="6" class="empty-state">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+let currentUserId = "";
+
+// --- helpers ---
+function showMsg(el, msg) { el.textContent = msg; el.style.display = "block"; }
+function hideMsg(el) { el.style.display = "none"; }
+
+// --- logout ---
+document.getElementById("btnLogout").addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+});
+
+// --- load users ---
+async function loadUsers() {
+    const resp = await fetch("/api/admin/users");
+    if (!resp.ok) {
+        document.getElementById("usersBody").innerHTML =
+            '<tr><td colspan="6" class="empty-state">Ошибка загрузки</td></tr>';
+        return;
+    }
+    const users = await resp.json();
+    const tbody = document.getElementById("usersBody");
+    tbody.innerHTML = "";
+
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Нет пользователей</td></tr>';
+        return;
+    }
+
+    users.forEach(u => {
+        const tr = document.createElement("tr");
+
+        const dt = u.created_at ? new Date(u.created_at) : null;
+        const dtStr = dt ? dt.toLocaleDateString("ru-RU", { day:"2-digit", month:"2-digit", year:"numeric" }) : "—";
+
+        const roleClass = u.is_admin ? "role-admin" : "role-user";
+        const roleLabel = u.is_admin ? "Админ" : "Пользователь";
+
+        const pwdStatus = u.must_change_password
+            ? '<span style="color:#b45309;font-size:0.82rem;">По умолчанию</span>'
+            : '<span style="color:#166534;font-size:0.82rem;">Изменён</span>';
+
+        const isSelf = u.id === currentUserId;
+        const deleteBtn = isSelf
+            ? '<span style="font-size:0.78rem;color:var(--gray-400);">Вы</span>'
+            : `<button class="btn-delete" onclick="deleteUser('${u.id}', '${u.email.replace(/'/g, "\\'")}')">Удалить</button>`;
+
+        tr.innerHTML = `
+            <td style="font-weight:500;">${escapeHtml(u.email)}</td>
+            <td>${escapeHtml(u.full_name || "—")}</td>
+            <td><span class="role-badge ${roleClass}">${roleLabel}</span></td>
+            <td>${pwdStatus}</td>
+            <td style="white-space:nowrap;">${dtStr}</td>
+            <td>${deleteBtn}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function escapeHtml(text) {
+    const d = document.createElement("div");
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+// --- create user ---
+document.getElementById("createUserForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const s = document.getElementById("createSuccess");
+    const err = document.getElementById("createError");
+    hideMsg(s); hideMsg(err);
+
+    const email = document.getElementById("newEmail").value.trim();
+    const fullName = document.getElementById("newFullName").value.trim();
+    const password = document.getElementById("newPassword").value;
+    const isAdmin = document.getElementById("newIsAdmin").checked;
+
+    if (!email || !password) { showMsg(err, "Заполните email и пароль"); return; }
+
+    const btn = document.getElementById("btnCreate");
+    btn.disabled = true;
+
+    try {
+        const resp = await fetch("/api/admin/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email,
+                password,
+                full_name: fullName || null,
+                is_admin: isAdmin,
+            }),
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            showMsg(err, data.detail || "Ошибка создания");
+            return;
+        }
+
+        showMsg(s, `Пользователь ${data.email} создан`);
+        e.target.reset();
+        loadUsers();
+    } catch (ex) {
+        showMsg(err, "Ошибка сети: " + ex.message);
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+// --- delete user ---
+async function deleteUser(id, email) {
+    if (!confirm(`Удалить пользователя ${email}?`)) return;
+
+    const resp = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+    if (resp.ok || resp.status === 204) {
+        loadUsers();
+    } else {
+        const data = await resp.json().catch(() => ({}));
+        alert(data.detail || "Ошибка удаления");
+    }
+}
+
+// --- init ---
+// Load current user ID then users list
+fetch("/api/auth/me", { credentials: "include" })
+    .then(r => { if (!r.ok) { window.location.href = "/login"; throw new Error("unauth"); } return r.json(); })
+    .then(u => { currentUserId = u.id; loadUsers(); })
+    .catch(() => {});
+</script>
+</body>
+</html>
