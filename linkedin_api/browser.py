@@ -202,7 +202,11 @@ async def login_with_credentials(
     logger.info("Logging in to LinkedIn...")
 
     try:
-        await page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
+        await page.goto(
+            "https://www.linkedin.com/login",
+            wait_until="domcontentloaded",
+            timeout=timeout,
+        )
         await _detect_rate_limit(page)
 
         try:
