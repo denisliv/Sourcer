@@ -3,28 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlfaHRSourcer</title>
+    <title>AlfaHRSourcer — AlfaHRService</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<header>
-    <div class="header-inner">
-        <div class="logo">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-            </svg>
-            <span>AlfaHR<b>Sourcer</b></span>
-        </div>
-        <nav style="margin-left:auto;display:flex;gap:1.25rem;align-items:center;">
-            <a href="/" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:600;">Поиск</a>
-            <a href="/account" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;">Личный кабинет</a>
-            <a id="adminLink" href="/admin/users" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;display:none;">Пользователи</a>
-            <button id="btnLogout" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:0.3rem 0.85rem;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:500;">Выйти</button>
-        </nav>
-    </div>
-</header>
+{% include "_header.html" %}
 
 <main>
     <!-- Search form -->
@@ -32,9 +17,9 @@
         <div class="sources-row">
             <label class="sources-label">Источники поиска:</label>
             <div class="sources-chips">
-                <label class="chip sources-chip"><input type="radio" name="sources" value="hh"><span>Только HH</span></label>
+                <label class="chip sources-chip"><input type="radio" name="sources" value="hh" checked><span>Только HH</span></label>
                 <label class="chip sources-chip"><input type="radio" name="sources" value="linkedin"><span>Только LinkedIn</span></label>
-                <label class="chip sources-chip"><input type="radio" name="sources" value="both" checked><span>HH + LinkedIn</span></label>
+                <label class="chip sources-chip"><input type="radio" name="sources" value="both"><span>HH + LinkedIn</span></label>
             </div>
         </div>
         <div class="search-header">
@@ -109,12 +94,24 @@
                     <div class="form-group form-group-count">
                         <label for="count">Количество</label>
                         <div class="count-input-wrap">
-                            <input type="number" id="count" value="100" min="1" max="2000" placeholder="100">
+                            <input type="number" id="count" value="10" min="1" max="2000" placeholder="10">
                             <span class="hint">макс. 2000</span>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Search history -->
+    <section class="search-card history-card collapsed" id="historySection">
+        <div class="history-header" id="historyToggle">
+            <h3 class="history-title">История поисков</h3>
+            <span class="history-chevron" id="historyChevron">▼</span>
+        </div>
+        <div class="history-body" id="historyBody">
+            <div id="historyList"></div>
+            <p class="history-empty" id="historyEmpty" style="display:none;">История пуста</p>
         </div>
     </section>
 
@@ -131,13 +128,14 @@
             <table id="resultsTable">
                 <thead>
                     <tr>
-                        <th class="th-source">Источник</th>
                         <th class="th-photo">Фото</th>
                         <th>Полное имя</th>
                         <th>Должность</th>
+                        <th>Последнее место работы</th>
                         <th>Локация</th>
                         <th>Опыт</th>
                         <th>Зарплата</th>
+                        <th class="th-source">Источник</th>
                         <th>Ссылка</th>
                         <th>Обновлено</th>
                         <th>Дата выгрузки</th>
@@ -165,17 +163,31 @@
     <div id="errorBox" class="error-box" style="display:none;"></div>
 </main>
 
+{% include "_footer.html" %}
+
 <script>
 document.getElementById("btnLogout").addEventListener("click", async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
 });
-// Load user info and show admin link if needed
 fetch("/api/auth/me", { credentials: "include" })
     .then(r => { if (!r.ok) { window.location.href = "/login"; throw new Error("unauth"); } return r.json(); })
     .then(u => { if (u.is_admin) document.getElementById("adminLink").style.display = ""; })
     .catch(() => {});
+
+(function() {
+    const btn = document.getElementById("servicesMenuBtn");
+    const menu = document.getElementById("servicesMenu");
+    if (btn && menu) {
+        btn.addEventListener("click", (e) => { e.stopPropagation(); menu.classList.toggle("dropdown-open"); btn.setAttribute("aria-expanded", menu.classList.contains("dropdown-open")); });
+        document.addEventListener("click", () => { menu.classList.remove("dropdown-open"); btn.setAttribute("aria-expanded", "false"); });
+    }
+    document.querySelectorAll(".dropdown-item-disabled").forEach(el => {
+        el.addEventListener("click", (e) => { e.preventDefault(); const t = document.getElementById("devToast"); if (t) { t.textContent = "В разработке"; t.style.display = "block"; setTimeout(() => { t.style.display = "none"; }, 2500); } });
+    });
+})();
 </script>
-<script src="/static/script.js?v=5"></script>
+<div id="devToast" class="toast-dev" style="display:none;"></div>
+<script src="/static/script.js?v=7"></script>
 </body>
 </html>

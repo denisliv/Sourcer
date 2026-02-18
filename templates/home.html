@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRService — Главная</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+{% include "_header.html" %}
+
+<main class="home-main">
+    <h1 class="home-title">Добро пожаловать в AlfaHRService</h1>
+    <p class="home-subtitle">Выберите сервис для работы</p>
+
+    <div class="service-cards">
+        <a href="/sourcer" class="service-card service-card-available">
+            <div class="service-card-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaHRSourcer</h2>
+            <p class="service-card-desc">Поиск кандидатов в HH и LinkedIn</p>
+            <span class="service-card-status service-card-ok">Доступен</span>
+        </a>
+
+        <a href="/benchmark" class="service-card service-card-available" id="cardBenchmark">
+            <div class="service-card-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaHRBenchmark</h2>
+            <p class="service-card-desc">Бенчмарки и аналитика зарплат</p>
+            <span class="service-card-status service-card-ok">Доступен</span>
+        </a>
+
+        <a href="/assistant" class="service-card service-card-available" id="cardAssistent">
+            <div class="service-card-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaHRAssistent</h2>
+            <p class="service-card-desc">Помощник HR</p>
+            <span class="service-card-status service-card-ok">Доступен</span>
+        </a>
+
+        <div class="service-card service-card-dev" id="cardResumeAnalyser">
+            <div class="service-card-icon service-card-icon-muted">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaEstaffResumeAnalyser</h2>
+            <p class="service-card-desc">ИИ анализ резюме из ATS</p>
+            <span class="service-card-status service-card-dev-badge">В разработке</span>
+        </div>
+
+        <div class="service-card service-card-dev" id="cardSpingFeedback">
+            <div class="service-card-icon service-card-icon-muted">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaiSpingFeedback</h2>
+            <p class="service-card-desc">ИИ анализ анкет обратной связи</p>
+            <span class="service-card-status service-card-dev-badge">В разработке</span>
+        </div>
+    </div>
+
+    <div id="devToast" class="toast-dev" role="alert" aria-live="polite" style="display:none;">
+        В разработке
+    </div>
+</main>
+
+{% include "_footer.html" %}
+
+<script>
+document.getElementById("btnLogout").addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+});
+
+fetch("/api/auth/me", { credentials: "include" })
+    .then(r => { if (!r.ok) { window.location.href = "/login"; throw new Error("unauth"); } return r.json(); })
+    .then(u => { if (u.is_admin) document.getElementById("adminLink").style.display = ""; })
+    .catch(() => {});
+
+// Services dropdown
+(function() {
+    const btn = document.getElementById("servicesMenuBtn");
+    const menu = document.getElementById("servicesMenu");
+    if (btn && menu) {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const open = menu.classList.toggle("dropdown-open");
+            btn.setAttribute("aria-expanded", open);
+        });
+        document.addEventListener("click", () => { menu.classList.remove("dropdown-open"); btn.setAttribute("aria-expanded", "false"); });
+    }
+
+    document.querySelectorAll(".dropdown-item-disabled").forEach(el => {
+        el.addEventListener("click", (e) => {
+            e.preventDefault();
+            const toast = document.getElementById("devToast");
+            if (toast) {
+                toast.textContent = "В разработке";
+                toast.style.display = "block";
+                setTimeout(() => { toast.style.display = "none"; }, 2500);
+            }
+        });
+    });
+})();
+
+// Dev cards click → toast
+document.querySelectorAll(".service-card-dev").forEach(card => {
+    card.addEventListener("click", () => {
+        const toast = document.getElementById("devToast");
+        if (toast) { toast.textContent = "В разработке"; toast.style.display = "block"; setTimeout(() => { toast.style.display = "none"; }, 2500); }
+    });
+});
+</script>
+</body>
+</html>

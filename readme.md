@@ -1,13 +1,65 @@
-# AlfaHRSourcer
+# AlfaHRService
 
-HR-приложение для поиска кандидатов из HeadHunter и LinkedIn.
+HR-сервис Альфа-Банка. Включает три модуля:
+
+- **AlfaHRSourcer** — поиск кандидатов в HeadHunter и LinkedIn
+- **AlfaHRBenchmark** — анализ рынка вакансий и бенчмаркинг зарплат
+- **AlfaHRAssistent** — интеллектуальный HR-ассистент на базе LLM
 
 ## Стек
 
-- **Backend**: FastAPI, SQLAlchemy (async), Alembic, Playwright
+- **Backend**: FastAPI, SQLAlchemy (async), Alembic, Playwright, OpenAI API
 - **Database**: PostgreSQL 16
-- **Frontend**: Jinja2 + vanilla JS
+- **Frontend**: Jinja2 + vanilla JS + Chart.js (графики Benchmark)
+- **LLM**: OpenAI-совместимый API (gpt-4o-mini по умолчанию)
 - **Deploy**: Docker Compose, Nginx
+
+## Сервисы
+
+### AlfaHRSourcer
+
+Поиск кандидатов по базе резюме HeadHunter и LinkedIn. Поддерживает фильтрацию по навыкам, опыту, региону, исключение по названию/компании. Результаты сохраняются в БД с историей поиска и экспортом в CSV.
+
+**Доступ:** требуется авторизация + личные credentials HH/LinkedIn.
+
+### AlfaHRBenchmark
+
+Анализ рынка вакансий с зарплатными данными. Получает вакансии из HH API (по вакансиям, не резюме), конвертирует зарплаты в BYN через API Belarusbank, фильтрует выбросы методом IQR, рассчитывает статистику (min/max/mean/median). Поддерживает интерактивную гистограмму распределения зарплат и экспорт в Excel.
+
+**Возможности:**
+- Поиск вакансий по ключевым словам с исключающими фильтрами
+- Регионы: Беларусь, Москва, Санкт-Петербург, все вместе
+- Фильтрация по опыту работы и периоду публикации (1–365 дней)
+- Автоматическая конвертация валют (USD, EUR, RUR и др.) в BYN
+- Конвертация Gross ↔ Net (НДФЛ 14%)
+- Фильтрация выбросов: минимальный порог 500 BYN + метод IQR (Tukey)
+- Гистограмма распределения зарплат (Chart.js)
+- Экспорт в Excel (.xlsx)
+
+**Доступ:** все авторизованные пользователи (без дополнительных credentials).
+
+### AlfaHRAssistent
+
+Интеллектуальный HR-ассистент на базе LLM (OpenAI-совместимый API). Работает в формате чата с поддержкой истории диалогов. Помогает HR-специалистам в повседневных задачах.
+
+**Возможности:**
+- Составление описаний вакансий
+- Подготовка вопросов для интервью
+- Консультации по трудовому законодательству
+- Помощь в адаптации новых сотрудников
+- Разработка HR-политик и процедур
+- Анализ резюме и подготовка отчётов
+
+**Функционал чата:**
+- Создание, переименование и удаление чатов
+- Поддержание истории сообщений в рамках одного чата
+- Хранение всех чатов пользователя с возможностью продолжения диалога
+- Стриминг ответов (SSE) — ответ отображается посимвольно в реальном времени
+- Автоматическая генерация названия чата по первому сообщению
+- Рендеринг Markdown (заголовки, списки, код, bold/italic)
+- Разделение данных по пользователям
+
+**Доступ:** все авторизованные пользователи (без дополнительных credentials).
 
 ## База данных
 
@@ -69,10 +121,10 @@ HR-приложение для поиска кандидатов из HeadHunter
 | `details` | JSONB | Нет | Дополнительные данные события |
 | `created_at` | DateTime(TZ) | — | Дата события |
 
-**Типы `action`:** `login`, `logout`, `password_change`, `credential_update`, `credential_delete`, `search`, `export_csv`, `admin_create_user`, `admin_delete_user`.  
-**Примеры `details`:** `{"provider": "hh"}`, `{"query": "...", "sources": "both", "results": 42}`.
+**Типы `action`:** `login`, `logout`, `password_change`, `credential_update`, `credential_delete`, `search`, `export_csv`, `admin_create_user`, `admin_delete_user`, `benchmark_search`.  
+**Примеры `details`:** `{"provider": "hh"}`, `{"query": "...", "sources": "both", "results": 42}`, `{"query": "python developer", "total": 150, "filtered": 120}`.
 
-#### 5. **searches** (Поиски)
+#### 5. **searches** (Поиски — AlfaHRSourcer)
 
 | Столбец | Тип | Шифрование | Содержимое и назначение |
 |---------|-----|------------|--------------------------|
@@ -107,6 +159,51 @@ HR-приложение для поиска кандидатов из HeadHunter
 **Ограничение:** уникальная комбинация `(search_id, source, external_id)`.  
 **Содержимое `extra_data`:** `photo`, `experience`, `salary`, `updated_at` (HH) / `fetched_at` (LinkedIn).
 
+#### 7. **benchmark_searches** (Поиски — AlfaHRBenchmark)
+
+| Столбец | Тип | Шифрование | Содержимое и назначение |
+|---------|-----|------------|--------------------------|
+| `id` | UUID | — | Идентификатор поиска |
+| `user_id` | UUID | — | Ссылка на пользователя (CASCADE) |
+| `query_text` | String(500) | Нет | Название вакансии (поисковый запрос) |
+| `query_params` | JSONB | Нет | Параметры поиска (exclude, area, experience, period) |
+| `total_vacancies` | Integer | — | Количество вакансий до фильтрации |
+| `filtered_count` | Integer | — | Количество вакансий после фильтрации выбросов |
+| `stat_min` | Float | — | Минимальная ЗП (gross, BYN) |
+| `stat_max` | Float | — | Максимальная ЗП (gross, BYN) |
+| `stat_mean` | Float | — | Средняя ЗП (gross, BYN) |
+| `stat_median` | Float | — | Медиана ЗП (gross, BYN) |
+| `status` | String(20) | Нет | Статус: `'completed'` |
+| `error_message` | Text | Нет | Сообщение об ошибке |
+| `created_at` | DateTime(TZ) | — | Время поиска |
+
+**Индекс:** `ix_benchmark_searches_user_id` по `user_id`.  
+**Содержимое `query_params`:** `{"exclude": "...", "area": "16", "experience": "between1And3", "period": 30}`.
+
+#### 8. **assistant_chats** (Чаты — AlfaHRAssistent)
+
+| Столбец | Тип | Шифрование | Содержимое и назначение |
+|---------|-----|------------|--------------------------|
+| `id` | UUID | — | Идентификатор чата |
+| `user_id` | UUID | — | Ссылка на пользователя (CASCADE) |
+| `title` | String(255) | Нет | Название чата (автогенерация или ручное) |
+| `created_at` | DateTime(TZ) | — | Дата создания чата |
+| `updated_at` | DateTime(TZ) | — | Дата последнего сообщения |
+
+**Индекс:** `ix_assistant_chats_user_id` по `user_id`.
+
+#### 9. **assistant_messages** (Сообщения — AlfaHRAssistent)
+
+| Столбец | Тип | Шифрование | Содержимое и назначение |
+|---------|-----|------------|--------------------------|
+| `id` | UUID | — | Идентификатор сообщения |
+| `chat_id` | UUID | — | Ссылка на чат (CASCADE) |
+| `role` | String(20) | Нет | Роль: `'user'` или `'assistant'` |
+| `content` | Text | Нет | Текст сообщения |
+| `created_at` | DateTime(TZ) | — | Дата отправки |
+
+**Индекс:** `ix_assistant_messages_chat_id` по `chat_id`.
+
 ### Шифрование
 
 | Данные | Метод | Формат |
@@ -116,7 +213,66 @@ HR-приложение для поиска кандидатов из HeadHunter
 | Логин и пароль LinkedIn | AES-256-GCM | Шифрование |
 | Cookies LinkedIn | AES-256-GCM | Шифрование |
 
-Токены сессий, email, параметры поиска, кандидаты и audit_logs хранятся **в открытом виде**; чувствительные данные — только в хешированном или зашифрованном виде.
+Токены сессий, email, параметры поиска, кандидаты, benchmark-статистика и audit_logs хранятся **в открытом виде**; чувствительные данные — только в хешированном или зашифрованном виде.
+
+## API
+
+### Аутентификация
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/api/auth/login` | Вход (email + password) |
+| POST | `/api/auth/logout` | Выход |
+| GET | `/api/auth/me` | Текущий пользователь |
+
+### AlfaHRSourcer
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/api/search` | Поиск кандидатов (HH/LinkedIn) |
+| GET | `/api/search/history` | История поисков |
+| GET | `/api/search/{id}` | Метаданные поиска |
+| GET | `/api/search/{id}/results` | Результаты поиска |
+| GET | `/api/export` | Экспорт CSV |
+
+### AlfaHRBenchmark
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/api/benchmark/search` | Поиск вакансий + статистика ЗП |
+| POST | `/api/benchmark/export-excel` | Экспорт в Excel (.xlsx) |
+| GET | `/api/benchmark/rates` | Текущие курсы валют |
+
+### AlfaHRAssistent
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/api/assistant/chats` | Список чатов пользователя |
+| POST | `/api/assistant/chats` | Создать новый чат |
+| PATCH | `/api/assistant/chats/{id}` | Переименовать чат |
+| DELETE | `/api/assistant/chats/{id}` | Удалить чат |
+| GET | `/api/assistant/chats/{id}/messages` | Сообщения чата |
+| POST | `/api/assistant/chats/{id}/messages` | Отправить сообщение (SSE-стрим ответа) |
+
+### Управление аккаунтом
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/api/account/status` | Статус credentials |
+| POST | `/api/account/password` | Смена пароля |
+| GET | `/api/account/hh/authorize` | HH OAuth редирект |
+| GET | `/api/account/hh/callback` | HH OAuth callback |
+| POST | `/api/account/credentials/linkedin` | Сохранить LinkedIn credentials |
+| DELETE | `/api/account/credentials/hh` | Удалить HH credentials |
+| DELETE | `/api/account/credentials/linkedin` | Удалить LinkedIn credentials |
+
+### Администрирование
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/api/admin/users` | Создать пользователя |
+| GET | `/api/admin/users` | Список пользователей |
+| DELETE | `/api/admin/users/{id}` | Удалить пользователя |
 
 ## Локальная разработка
 
@@ -151,18 +307,34 @@ docker run -d --name pg -p 5432:5432 \
 
 ### Конфигурация
 
-Скопируйте `.env.example` или создайте `.env` в корне проекта:
+Создайте `.env` в корне проекта:
 
 ```env
 DATABASE_URL=postgresql+asyncpg://admin:admin@localhost:5432/hrservice
 ENCRYPTION_KEY=<random-64-hex-chars>
 SECRET_KEY=<random-secret-string>
 
+# HH OAuth (для AlfaHRSourcer — поиск по резюме)
 HH_APP_CLIENT_ID=<your-hh-client-id>
 HH_APP_CLIENT_SECRET=<your-hh-client-secret>
 HH_USER_AGENT=YourApp (contact@email.com)
 HH_REDIRECT_URI=http://localhost:8000/api/account/hh/callback
+
+# HH App Token (для AlfaHRBenchmark — поиск по вакансиям)
+HH_APP_TOKEN=<your-hh-app-token>
+
+# OpenAI-совместимый API (для AlfaHRAssistent)
+OPENAI_API_KEY=<your-api-key>
+OPENAI_API_BASE=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
 ```
+
+**Различие токенов HH:**
+- `HH_APP_CLIENT_ID` / `HH_APP_CLIENT_SECRET` — OAuth2 для доступа к резюме (требует авторизацию пользователя)
+- `HH_APP_TOKEN` — токен приложения для публичного API вакансий (не требует авторизацию пользователя)
+- `OPENAI_API_KEY` — ключ доступа к OpenAI-совместимому API
+- `OPENAI_API_BASE` — базовый URL API (для прокси или самохостинга можно заменить)
+- `OPENAI_MODEL` — модель LLM (по умолчанию `gpt-4o-mini`)
 
 ### Запуск
 
@@ -185,6 +357,8 @@ python -m app
 python -m pytest tests/ -v
 ```
 
+Тесты используют SQLite (in-memory) и не требуют PostgreSQL.
+
 ## Production (Docker Compose)
 
 ### Запуск
@@ -199,7 +373,7 @@ docker compose up -d --build
 docker compose exec backend python create_admin.py admin@example.com password123 "Admin Name"
 ```
 
-Приложение: http://localhost:3000
+Приложение: http://localhost:80 (Nginx)
 
 ### Архитектура контейнеров
 
@@ -207,7 +381,7 @@ docker compose exec backend python create_admin.py admin@example.com password123
 |------------|------|---------------------------------------|
 | `postgres` | 5432 | PostgreSQL 16                         |
 | `backend`  | 8000 | FastAPI + миграции при старте         |
-| `frontend` | 3000 | Nginx (статика + проксирование API)   |
+| `frontend` | 80   | Nginx (статика + проксирование API)   |
 
 Миграции запускаются автоматически при старте `backend`.
 
@@ -216,4 +390,48 @@ docker compose exec backend python create_admin.py admin@example.com password123
 ```bash
 docker compose down        # остановить
 docker compose down -v     # остановить и удалить данные БД
+```
+
+## Структура проекта
+
+```
+├── app/
+│   ├── api/
+│   │   ├── auth.py              # Аутентификация
+│   │   ├── account.py           # Управление аккаунтом
+│   │   ├── admin.py             # Администрирование
+│   │   ├── search.py            # AlfaHRSourcer API
+│   │   ├── benchmark.py         # AlfaHRBenchmark API
+│   │   ├── assistant.py         # AlfaHRAssistent API
+│   │   └── dependencies.py      # Auth dependencies
+│   ├── core/
+│   │   ├── config.py            # Конфигурация
+│   │   ├── database.py          # SQLAlchemy async
+│   │   └── security.py          # Пароли + шифрование
+│   ├── models/
+│   │   ├── user.py              # Пользователи
+│   │   ├── session.py           # Сессии
+│   │   ├── credential.py        # Credentials (HH/LinkedIn)
+│   │   ├── audit_log.py         # Журнал аудита
+│   │   ├── search.py            # Поиски (Sourcer)
+│   │   ├── candidate.py         # Кандидаты (Sourcer)
+│   │   ├── benchmark.py         # Поиски (Benchmark)
+│   │   └── assistant.py         # Чаты и сообщения (Assistent)
+│   ├── services/
+│   │   ├── hh_service.py        # HH API (резюме)
+│   │   ├── hh_oauth.py          # HH OAuth
+│   │   ├── linkedin_service.py  # LinkedIn API
+│   │   ├── linkedin_oauth.py    # LinkedIn auth
+│   │   ├── benchmark_service.py # HH API (вакансии) + аналитика
+│   │   ├── assistant_service.py # OpenAI LLM API
+│   │   └── audit.py             # Audit logging
+│   └── main.py                  # FastAPI app
+├── linkedin_api/                # LinkedIn API package
+├── alembic/                     # Миграции БД
+├── templates/                   # Jinja2 шаблоны
+├── static/                      # CSS, JS, favicon
+├── tests/                       # Pytest тесты
+├── docker-compose.yml
+├── backend.Dockerfile
+└── requirements.txt
 ```

@@ -35,3 +35,5 @@ class User(Base):
     credentials = relationship("Credential", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user")
     searches = relationship("Search", back_populates="user")
+    benchmark_searches = relationship("BenchmarkSearch", back_populates="user")
+    assistant_chats = relationship("AssistantChat", back_populates="user", cascade="all, delete-orphan")

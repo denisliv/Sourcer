@@ -1,7 +1,7 @@
 """initial_schema
 
 Revision ID: c3daeb100f4b
-Create Date: 2026-02-15
+Create Date: 2026-02-18
 """
 
 from typing import Sequence, Union
@@ -175,8 +175,86 @@ def upgrade() -> None:
     )
     op.create_index("idx_candidates_search", "candidates", ["search_id"])
 
+    # --- benchmark_searches ---
+    op.create_table(
+        "benchmark_searches",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column(
+            "user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("query_text", sa.String(500), nullable=False),
+        sa.Column("query_params", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("total_vacancies", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("filtered_count", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("stat_min", sa.Float(), nullable=True),
+        sa.Column("stat_max", sa.Float(), nullable=True),
+        sa.Column("stat_mean", sa.Float(), nullable=True),
+        sa.Column("stat_median", sa.Float(), nullable=True),
+        sa.Column("status", sa.String(20), server_default="completed", nullable=False),
+        sa.Column("error_message", sa.Text(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")
+        ),
+    )
+    op.create_index(
+        op.f("ix_benchmark_searches_user_id"),
+        "benchmark_searches",
+        ["user_id"],
+        unique=False,
+    )
+
+    # --- assistant_chats ---
+    op.create_table(
+        "assistant_chats",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_assistant_chats_user_id"),
+        "assistant_chats",
+        ["user_id"],
+        unique=False,
+    )
+
+    # --- assistant_messages ---
+    op.create_table(
+        "assistant_messages",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("chat_id", sa.UUID(), nullable=False),
+        sa.Column("role", sa.String(length=20), nullable=False),
+        sa.Column("content", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["chat_id"], ["assistant_chats.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_assistant_messages_chat_id"),
+        "assistant_messages",
+        ["chat_id"],
+        unique=False,
+    )
+
 
 def downgrade() -> None:
+    op.drop_index(op.f("ix_assistant_messages_chat_id"), table_name="assistant_messages")
+    op.drop_table("assistant_messages")
+    op.drop_index(op.f("ix_assistant_chats_user_id"), table_name="assistant_chats")
+    op.drop_table("assistant_chats")
+    op.drop_index(op.f("ix_benchmark_searches_user_id"), table_name="benchmark_searches")
+    op.drop_table("benchmark_searches")
     op.drop_table("candidates")
     op.drop_table("searches")
     op.drop_table("audit_logs")

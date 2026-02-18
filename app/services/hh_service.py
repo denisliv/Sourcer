@@ -135,6 +135,14 @@ def parse_item(item: dict) -> dict:
     if item.get("total_experience") and item["total_experience"].get("months") is not None:
         total_exp_months = item["total_experience"]["months"]
 
+    last_work = "—"
+    exp_list = item.get("experience") or []
+    if exp_list and isinstance(exp_list[0], dict):
+        company = (exp_list[0].get("company") or "").strip()
+        position = (exp_list[0].get("position") or "").strip()
+        parts = [p for p in [company, position] if p]
+        last_work = " / ".join(parts) if parts else "—"
+
     return {
         "source": "hh",
         "photo": photo,
@@ -142,6 +150,7 @@ def parse_item(item: dict) -> dict:
         "title": item.get("title", "—"),
         "area": area_name,
         "experience": format_experience(total_exp_months),
+        "last_work": last_work,
         "salary": format_salary(item.get("salary")),
         "url": item.get("alternate_url", ""),
         "updated_at": item.get("updated_at", "—"),

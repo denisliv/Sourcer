@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlfaHRSourcer — Вход</title>
+    <title>AlfaHRService — Вход</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        .login-wrapper {
+        .login-main {
+            flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: calc(100vh - 56px);
             padding: 2rem;
+        }
+        .login-wrapper {
+            width: 100%;
         }
         .login-card {
             background: #fff;
@@ -77,15 +80,16 @@
 
 <header>
     <div class="header-inner">
-        <div class="logo">
+        <a href="/" class="logo">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
             </svg>
-            <span>AlfaHR<b>Sourcer</b></span>
-        </div>
+            <span>AlfaHR<b>Service</b></span>
+        </a>
     </div>
 </header>
 
+<main class="login-main">
 <div class="login-wrapper">
     <div class="login-card">
         <h2>Вход в систему</h2>
@@ -103,6 +107,7 @@
         </form>
     </div>
 </div>
+</main>
 
 <script>
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
@@ -136,7 +141,8 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     } finally {
         btn.disabled = false;
     }
-});
+        });
 </script>
+{% include "_footer.html" %}
 </body>
 </html>

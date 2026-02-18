@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRBenchmark — AlfaHRService</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+{% include "_header.html" %}
+
+<main>
+    <section class="search-card">
+        <div class="search-header">
+            <h2>Salary Benchmark</h2>
+            <button id="btnBenchSearch" class="btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Поиск вакансий
+            </button>
+        </div>
+
+        <div class="search-form">
+            <div class="search-row-main">
+                <div class="form-group form-group-search">
+                    <label for="benchInclude">Название вакансии</label>
+                    <input type="text" id="benchInclude" placeholder="Например: python developer" autocomplete="off" required>
+                </div>
+                <div class="form-group form-group-skills">
+                    <label for="benchExclude">Исключающие слова</label>
+                    <input type="text" id="benchExclude" placeholder="аналитик, стажёр" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="search-row-filters">
+                <div class="form-group form-group-experience">
+                    <label>Опыт работы</label>
+                    <div class="experience-chips">
+                        <label class="chip"><input type="radio" name="benchExperience" value="" checked><span>Без фильтра</span></label>
+                        <label class="chip"><input type="radio" name="benchExperience" value="noExperience"><span>Нет опыта</span></label>
+                        <label class="chip"><input type="radio" name="benchExperience" value="between1And3"><span>1–3 года</span></label>
+                        <label class="chip"><input type="radio" name="benchExperience" value="between3And6"><span>3–6 лет</span></label>
+                        <label class="chip"><input type="radio" name="benchExperience" value="moreThan6"><span>6+ лет</span></label>
+                    </div>
+                </div>
+                <div class="filters-inline">
+                    <div class="form-group">
+                        <label for="benchArea">Регион</label>
+                        <select id="benchArea">
+                            {% for opt in area_options %}
+                            <option value="{{ opt.value }}">{{ opt.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="benchPeriod">Период (дней)</label>
+                        <select id="benchPeriod">
+                            {% for p in period_options %}
+                            <option value="{{ p }}" {% if p == 30 %}selected{% endif %}>{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Search history -->
+    <section class="search-card history-card collapsed" id="benchHistorySection">
+        <div class="history-header" id="benchHistoryToggle">
+            <h3 class="history-title">История поисков</h3>
+            <span class="history-chevron" id="benchHistoryChevron">▼</span>
+        </div>
+        <div class="history-body" id="benchHistoryBody">
+            <div id="benchHistoryList"></div>
+            <p class="history-empty" id="benchHistoryEmpty" style="display:none;">История пуста</p>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="results-card bench-stats-section" id="benchStatsSection" style="display:none;">
+        <h2>Статистика <span id="benchStatsMeta"></span></h2>
+        <div class="bench-stats-grid">
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Вакансий</div>
+                <div class="bench-stat-value" id="statCount">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Мин. ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMin">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Макс. ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMax">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Средняя ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMean">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Медиана ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMedian">-</div>
+            </div>
+        </div>
+        <div class="bench-chart-container">
+            <canvas id="salaryChart"></canvas>
+        </div>
+    </section>
+
+    <!-- Results table -->
+    <section class="results-card" id="benchResultsSection" style="display:none;">
+        <div class="results-header">
+            <h2>Результаты <span id="benchResultsMeta"></span></h2>
+            <button id="btnBenchExport" class="btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Выгрузить Excel
+            </button>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:52px">Лого</th>
+                        <th>Вакансия</th>
+                        <th>Компания</th>
+                        <th>Локация</th>
+                        <th>Специализация</th>
+                        <th>Опыт</th>
+                        <th>Net от</th>
+                        <th>Net до</th>
+                        <th>Gross от</th>
+                        <th>Gross до</th>
+                        <th>Ссылка</th>
+                        <th>Опубликовано</th>
+                        <th>Загружено</th>
+                    </tr>
+                </thead>
+                <tbody id="benchTableBody"></tbody>
+            </table>
+        </div>
+        <div class="results-pagination">
+            <span id="benchPaginationMeta"></span>
+            <div class="pagination-buttons">
+                <button id="benchPrev" class="btn-outline btn-sm">&larr; Назад</button>
+                <button id="benchNext" class="btn-outline btn-sm">Далее &rarr;</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Loader -->
+    <div id="benchLoader" class="loader" style="display:none;">
+        <div class="spinner"></div>
+        <p>Анализ рынка вакансий...</p>
+    </div>
+
+    <!-- Error -->
+    <div id="benchError" class="error-box" style="display:none;"></div>
+</main>
+
+{% include "_footer.html" %}
+
+<script>
+document.getElementById("btnLogout").addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+});
+fetch("/api/auth/me", { credentials: "include" })
+    .then(r => { if (!r.ok) { window.location.href = "/login"; throw new Error("unauth"); } return r.json(); })
+    .then(u => { if (u.is_admin) document.getElementById("adminLink").style.display = ""; })
+    .catch(() => {});
+
+(function() {
+    const btn = document.getElementById("servicesMenuBtn");
+    const menu = document.getElementById("servicesMenu");
+    if (btn && menu) {
+        btn.addEventListener("click", (e) => { e.stopPropagation(); menu.classList.toggle("dropdown-open"); btn.setAttribute("aria-expanded", menu.classList.contains("dropdown-open")); });
+        document.addEventListener("click", () => { menu.classList.remove("dropdown-open"); btn.setAttribute("aria-expanded", "false"); });
+    }
+    document.querySelectorAll(".dropdown-item-disabled").forEach(el => {
+        el.addEventListener("click", (e) => { e.preventDefault(); const t = document.getElementById("devToast"); if (t) { t.textContent = "В разработке"; t.style.display = "block"; setTimeout(() => { t.style.display = "none"; }, 2500); } });
+    });
+})();
+</script>
+<div id="devToast" class="toast-dev" style="display:none;"></div>
+<script src="/static/benchmark.js?v=2"></script>
+</body>
+</html>

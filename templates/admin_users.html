@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlfaHRSourcer — Управление пользователями</title>
+    <title>AlfaHRService — Управление пользователями</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
     <style>
@@ -124,22 +124,7 @@
 </head>
 <body>
 
-<header>
-    <div class="header-inner">
-        <div class="logo">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-            </svg>
-            <span>AlfaHR<b>Sourcer</b></span>
-        </div>
-        <nav style="margin-left:auto;display:flex;gap:1.25rem;align-items:center;">
-            <a href="/" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;">Поиск</a>
-            <a href="/account" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:500;opacity:0.85;">Личный кабинет</a>
-            <a href="/admin/users" style="color:#fff;text-decoration:none;font-size:0.9rem;font-weight:600;">Пользователи</a>
-            <button id="btnLogout" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:0.3rem 0.85rem;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:500;">Выйти</button>
-        </nav>
-    </div>
-</header>
+{% include "_header.html" %}
 
 <main>
     <div class="admin-grid">
@@ -201,6 +186,8 @@
     </div>
 </main>
 
+{% include "_footer.html" %}
+
 <script>
 let currentUserId = "";
 
@@ -213,6 +200,19 @@ document.getElementById("btnLogout").addEventListener("click", async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
 });
+
+// --- Services dropdown ---
+(function() {
+    const btn = document.getElementById("servicesMenuBtn");
+    const menu = document.getElementById("servicesMenu");
+    if (btn && menu) {
+        btn.addEventListener("click", (e) => { e.stopPropagation(); menu.classList.toggle("dropdown-open"); btn.setAttribute("aria-expanded", menu.classList.contains("dropdown-open")); });
+        document.addEventListener("click", () => { menu.classList.remove("dropdown-open"); btn.setAttribute("aria-expanded", "false"); });
+    }
+    document.querySelectorAll(".dropdown-item-disabled").forEach(el => {
+        el.addEventListener("click", (e) => { e.preventDefault(); const t = document.getElementById("devToast"); if (t) { t.textContent = "В разработке"; t.style.display = "block"; setTimeout(() => { t.style.display = "none"; }, 2500); } });
+    });
+})();
 
 // --- load users ---
 async function loadUsers() {
@@ -329,8 +329,9 @@ async function deleteUser(id, email) {
 // Load current user ID then users list
 fetch("/api/auth/me", { credentials: "include" })
     .then(r => { if (!r.ok) { window.location.href = "/login"; throw new Error("unauth"); } return r.json(); })
-    .then(u => { currentUserId = u.id; loadUsers(); })
+    .then(u => { currentUserId = u.id; loadUsers(); if (u.is_admin) document.getElementById("adminLink").style.display = ""; })
     .catch(() => {});
 </script>
+<div id="devToast" class="toast-dev" style="display:none;"></div>
 </body>
 </html>

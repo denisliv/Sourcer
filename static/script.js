@@ -24,8 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const excludeCompany = (document.getElementById("excludeCompany")?.value ?? "").trim();
         const area = document.getElementById("area")?.value ?? "16";
         const period = document.getElementById("period")?.value ?? "30";
-        const count = document.getElementById("count")?.value ?? "50";
-        const sources = (document.querySelector('input[name="sources"]:checked')?.value ?? "both");
+        const count = document.getElementById("count")?.value ?? "10";
+        const sources = (document.querySelector('input[name="sources"]:checked')?.value ?? "hh");
 
         const experience = [...document.querySelectorAll('input[name="experience"]:checked')]
             .map(el => el.value);
@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
         params.append("area", data.area);
         params.append("period", data.period);
         params.append("count", data.count);
-        params.append("sources", data.sources || "both");
+        params.append("sources", data.sources || "hh");
         return params.toString();
     }
 
@@ -71,15 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         pageCandidates.forEach((c) => {
             const tr = document.createElement("tr");
-
-            // Source
-            const tdSource = document.createElement("td");
-            const src = c.source || "hh";
-            const span = document.createElement("span");
-            span.className = `source-badge ${src}`;
-            span.textContent = src === "linkedin" ? "LI" : "HH";
-            tdSource.appendChild(span);
-            tr.appendChild(tdSource);
 
             // Photo
             const tdPhoto = document.createElement("td");
@@ -109,6 +100,11 @@ document.addEventListener("DOMContentLoaded", () => {
             tdTitle.textContent = c.title;
             tr.appendChild(tdTitle);
 
+            // Last work (Company / Position)
+            const tdLastWork = document.createElement("td");
+            tdLastWork.textContent = c.last_work ?? "—";
+            tr.appendChild(tdLastWork);
+
             // Location
             const tdArea = document.createElement("td");
             tdArea.textContent = c.area;
@@ -125,6 +121,15 @@ document.addEventListener("DOMContentLoaded", () => {
             tdSalary.textContent = c.salary;
             tdSalary.style.whiteSpace = "nowrap";
             tr.appendChild(tdSalary);
+
+            // Source
+            const tdSource = document.createElement("td");
+            const src = c.source || "hh";
+            const span = document.createElement("span");
+            span.className = `source-badge ${src}`;
+            span.textContent = src === "linkedin" ? "LI" : "HH";
+            tdSource.appendChild(span);
+            tr.appendChild(tdSource);
 
             // Link
             const tdLink = document.createElement("td");
@@ -212,6 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
             resultsSection.style.display = "block";
 
             resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+            loadHistory();
         } catch (err) {
             showError("Ошибка сети: " + err.message);
         } finally {
@@ -219,6 +225,86 @@ document.addEventListener("DOMContentLoaded", () => {
             btnSearch.disabled = false;
         }
     });
+
+    // Load history on init
+    loadHistory();
+
+    // Load and render search history
+    async function loadHistory() {
+        try {
+            const resp = await fetch("/api/search/history?per_page=15", { credentials: "include" });
+            if (!resp.ok) return;
+            const json = await resp.json();
+            const list = document.getElementById("historyList");
+            const empty = document.getElementById("historyEmpty");
+            list.innerHTML = "";
+            list.className = "history-list";
+            if (!json.items || json.items.length === 0) {
+                empty.style.display = "block";
+                return;
+            }
+            empty.style.display = "none";
+            json.items.forEach((item) => {
+                const div = document.createElement("div");
+                div.className = "history-item";
+                const dateStr = item.created_at ? formatDate(item.created_at) : "—";
+                const srcLabel = item.sources === "both" ? "HH+LI" : (item.sources === "linkedin" ? "LI" : "HH");
+                div.innerHTML = `
+                    <div class="history-item-info">
+                        <div class="history-item-query">${escapeHtml(item.query_text || "(пусто)")}</div>
+                        <div class="history-item-meta">${dateStr} · ${item.total_results} рез. · ${srcLabel}</div>
+                    </div>
+                    <div class="history-item-actions">
+                        <button type="button" class="btn-outline btn-sm history-btn-open" data-id="${item.id}">Открыть</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            list.querySelectorAll(".history-btn-open").forEach((btn) => {
+                btn.addEventListener("click", () => openHistorySearch(btn.dataset.id));
+            });
+        } catch {}
+    }
+    function escapeHtml(s) {
+        const d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    // Open a past search (load results)
+    async function openHistorySearch(searchId) {
+        hideError();
+        loader.style.display = "block";
+        try {
+            const resp = await fetch(`/api/search/${searchId}/results`, { credentials: "include" });
+            const json = await resp.json();
+            if (json.error || !json.candidates) {
+                showError(json.message || "Не удалось загрузить результаты");
+                return;
+            }
+            allCandidates = json.candidates;
+            lastSearchId = searchId;
+            currentPage = 1;
+            renderTable(allCandidates);
+            resultsMeta.textContent = `(найдено ${json.total_found})`;
+            resultsSection.style.display = "block";
+            resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (err) {
+            showError("Ошибка: " + err.message);
+        } finally {
+            loader.style.display = "none";
+        }
+    }
+
+    // History toggle
+    const historySection = document.getElementById("historySection");
+    const historyToggle = document.getElementById("historyToggle");
+    const historyChevron = document.getElementById("historyChevron");
+    if (historySection && historyToggle) {
+        historyToggle.addEventListener("click", () => {
+            historySection.classList.toggle("collapsed");
+        });
+    }
 
     // Export CSV
     btnExport.addEventListener("click", () => {

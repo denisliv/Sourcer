@@ -7,7 +7,7 @@ from io import StringIO
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
@@ -26,6 +26,116 @@ router = APIRouter(tags=["search"])
 
 
 # ── helpers ───────────────────────────────────────────────────────
+
+def _candidate_to_ui(c: CandidateModel) -> dict:
+    """Convert Candidate model to UI format."""
+    extra = c.extra_data or {}
+    fetched = c.created_at.strftime("%d.%m.%Y %H:%M") if c.created_at else "—"
+    return {
+        "source": c.source or "hh",
+        "photo": extra.get("photo"),
+        "full_name": c.full_name or "—",
+        "title": c.current_title or "—",
+        "area": c.location or "—",
+        "experience": extra.get("experience", "—"),
+        "last_work": extra.get("last_work", "—"),
+        "salary": extra.get("salary", "—"),
+        "url": c.profile_url or "",
+        "updated_at": extra.get("updated_at", "—"),
+        "fetched_at": fetched,
+    }
+
+
+# ── search history ────────────────────────────────────────────────
+
+@router.get("/api/search/history")
+async def search_history(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=50),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return user's search history (recent first)."""
+    offset = (page - 1) * per_page
+    result = await db.execute(
+        select(SearchModel)
+        .where(SearchModel.user_id == user.id)
+        .order_by(SearchModel.created_at.desc())
+        .limit(per_page)
+        .offset(offset)
+    )
+    searches = result.scalars().all()
+    count_row = await db.execute(
+        select(func.count()).select_from(SearchModel).where(SearchModel.user_id == user.id)
+    )
+    total = count_row.scalar() or 0
+    return {
+        "items": [
+            {
+                "id": str(s.id),
+                "query_text": s.query_text,
+                "query_params": s.query_params or {},
+                "sources": s.sources,
+                "total_results": s.total_results or 0,
+                "status": s.status,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+            for s in searches
+        ],
+        "total": total,
+    }
+
+
+@router.get("/api/search/{search_id}")
+async def get_search(
+    search_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get search metadata (for restore params)."""
+    try:
+        sid = _uuid.UUID(search_id)
+    except ValueError:
+        return {"error": True, "message": "Недействительный search_id"}
+    search = await db.get(SearchModel, sid)
+    if search is None or search.user_id != user.id:
+        return {"error": True, "message": "Поиск не найден"}
+    return {
+        "error": False,
+        "id": str(search.id),
+        "query_text": search.query_text,
+        "query_params": search.query_params or {},
+        "sources": search.sources,
+    }
+
+
+@router.get("/api/search/{search_id}/results")
+async def search_results(
+    search_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Load candidates from a previous search."""
+    try:
+        sid = _uuid.UUID(search_id)
+    except ValueError:
+        return {"error": True, "message": "Недействительный search_id"}
+    search = await db.get(SearchModel, sid)
+    if search is None or search.user_id != user.id:
+        return {"error": True, "message": "Поиск не найден"}
+    result = await db.execute(
+        select(CandidateModel).where(CandidateModel.search_id == sid)
+    )
+    candidates = result.scalars().all()
+    return {
+        "error": False,
+        "search_id": search_id,
+        "total_found": search.total_results or len(candidates),
+        "candidates": [_candidate_to_ui(c) for c in candidates],
+    }
+
+
+# ── search endpoint ───────────────────────────────────────────────
 
 def _normalize_sources(s: str) -> tuple[bool, bool]:
     """Parse sources: 'hh' | 'linkedin' | 'both' -> (use_hh, use_linkedin)."""
@@ -184,6 +294,7 @@ async def search_resumes(
             extra_data={
                 "photo": c.get("photo"),
                 "experience": c.get("experience"),
+                "last_work": c.get("last_work"),
                 "salary": c.get("salary"),
                 "updated_at": c.get("updated_at"),
             },
@@ -203,6 +314,7 @@ async def search_resumes(
             extra_data={
                 "photo": c.get("photo"),
                 "experience": c.get("experience"),
+                "last_work": c.get("last_work"),
                 "salary": c.get("salary"),
                 "updated_at": c.get("updated_at"),
             },
@@ -267,7 +379,7 @@ async def export_csv(
 
     buf = StringIO()
     buf.write("\ufeff")
-    header = "Источник;Полное имя;Должность;Локация;Опыт;Зарплата;Ссылка;Обновлено;Дата выгрузки\n"
+    header = "Источник;Полное имя;Должность;Последнее место работы;Локация;Опыт;Зарплата;Ссылка;Обновлено;Дата выгрузки\n"
     buf.write(header)
     for c in candidates:
         extra = c.extra_data or {}
@@ -276,6 +388,7 @@ async def export_csv(
             c.source or "hh",
             c.full_name or "—",
             c.current_title or "—",
+            extra.get("last_work", "—"),
             c.location or "—",
             extra.get("experience", "—"),
             extra.get("salary", "—"),

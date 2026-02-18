@@ -1,4 +1,4 @@
-"""AlfaHRSourcer — multi-user FastAPI application."""
+"""AlfaHRService — multi-user FastAPI application."""
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -29,7 +29,7 @@ async def lifespan(application: FastAPI):
 
 # --------------- App ---------------
 
-app = FastAPI(title="AlfaHRSourcer", lifespan=lifespan)
+app = FastAPI(title="AlfaHRService", lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -51,13 +51,17 @@ async def health():
 
 from app.api.account import router as account_router  # noqa: E402
 from app.api.admin import router as admin_router  # noqa: E402
+from app.api.assistant import router as assistant_router  # noqa: E402
 from app.api.auth import router as auth_router  # noqa: E402
+from app.api.benchmark import router as benchmark_router  # noqa: E402
 from app.api.search import router as search_router  # noqa: E402
 
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(account_router)
 app.include_router(search_router)
+app.include_router(benchmark_router)
+app.include_router(assistant_router)
 
 
 # --------------- Pages ---------------
@@ -80,9 +84,36 @@ async def login_page(request: Request):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    """Serve the search page (auth check is done client-side via /api/auth/me)."""
-    return templates.TemplateResponse("index.html", {"request": request})
+async def home(request: Request):
+    """Serve the main home page with service selection (auth check is done client-side via /api/auth/me)."""
+    return templates.TemplateResponse("home.html", {"request": request})
+
+
+@app.get("/sourcer", response_class=HTMLResponse)
+async def sourcer_page(request: Request):
+    """Serve the AlfaHRSourcer search page (auth check is done client-side via /api/auth/me)."""
+    return templates.TemplateResponse("sourcer.html", {"request": request})
+
+
+@app.get("/benchmark", response_class=HTMLResponse)
+async def benchmark_page(request: Request):
+    """Serve the AlfaHRBenchmark page (auth check is done client-side via /api/auth/me)."""
+    from app.core.config import BENCHMARK_AREAS, BENCHMARK_EXPERIENCE_OPTIONS, BENCHMARK_PERIOD_OPTIONS
+    return templates.TemplateResponse("benchmark.html", {
+        "request": request,
+        "period_options": BENCHMARK_PERIOD_OPTIONS,
+        "experience_options": [
+            {"value": k, "label": v or "Без фильтра"}
+            for k, v in BENCHMARK_EXPERIENCE_OPTIONS.items()
+        ],
+        "area_options": [{"value": k, "label": v} for k, v in BENCHMARK_AREAS.items()],
+    })
+
+
+@app.get("/assistant", response_class=HTMLResponse)
+async def assistant_page(request: Request):
+    """Serve the AlfaHRAssistent chat page (auth check is done client-side via /api/auth/me)."""
+    return templates.TemplateResponse("assistant.html", {"request": request})
 
 
 @app.get("/account", response_class=HTMLResponse)
