@@ -116,6 +116,7 @@ async def get_exchange_rates() -> dict[str, float]:
 
 # --------------- Helpers ---------------
 
+
 def _safe_float(value: Any) -> float | None:
     if value is None:
         return None
@@ -193,6 +194,7 @@ def clean_for_json(obj: Any) -> Any:
 
 # --------------- Core logic ---------------
 
+
 async def fetch_vacancies(
     job_query: str,
     excluded_text: str,
@@ -213,7 +215,7 @@ async def fetch_vacancies(
             while total_fetched < MAX_VACANCIES:
                 params: dict[str, Any] = {
                     "host": host,
-                    "text": job_query.strip(),
+                    "text": f"{job_query.strip()}",
                     "search_field": "name",
                     "area": area,
                     "only_with_salary": True,
@@ -269,7 +271,9 @@ async def process_vacancies_data(data: list[dict]) -> list[dict]:
         employer = item.get("employer") or {}
         logo_url = None
         if employer.get("logo_urls"):
-            logo_url = employer["logo_urls"].get("90") or employer["logo_urls"].get("240")
+            logo_url = employer["logo_urls"].get("90") or employer["logo_urls"].get(
+                "240"
+            )
 
         area = item.get("area") or {}
         area_name = area.get("name", "") if isinstance(area, dict) else ""
@@ -303,10 +307,18 @@ async def process_vacancies_data(data: list[dict]) -> list[dict]:
                     gross_from = _salary_net_to_gross(from_val) if from_val else None
                     gross_to = _salary_net_to_gross(to_val) if to_val else None
 
-                salary_net_from_byn = _safe_float(_convert_to_byn(net_from, currency, rates))
-                salary_net_to_byn = _safe_float(_convert_to_byn(net_to, currency, rates))
-                salary_gross_from_byn = _safe_float(_convert_to_byn(gross_from, currency, rates))
-                salary_gross_to_byn = _safe_float(_convert_to_byn(gross_to, currency, rates))
+                salary_net_from_byn = _safe_float(
+                    _convert_to_byn(net_from, currency, rates)
+                )
+                salary_net_to_byn = _safe_float(
+                    _convert_to_byn(net_to, currency, rates)
+                )
+                salary_gross_from_byn = _safe_float(
+                    _convert_to_byn(gross_from, currency, rates)
+                )
+                salary_gross_to_byn = _safe_float(
+                    _convert_to_byn(gross_to, currency, rates)
+                )
 
         published_raw = item.get("published_at") or ""
         published_at = ""
@@ -315,23 +327,27 @@ async def process_vacancies_data(data: list[dict]) -> list[dict]:
                 dt = datetime.strptime(published_raw[:19], "%Y-%m-%dT%H:%M:%S")
                 published_at = dt.strftime("%d.%m.%Y %H:%M")
             except (ValueError, TypeError):
-                published_at = published_raw[:10] if len(published_raw) >= 10 else published_raw
+                published_at = (
+                    published_raw[:10] if len(published_raw) >= 10 else published_raw
+                )
 
-        rows.append({
-            "logo_url": logo_url,
-            "name": item.get("name") or "",
-            "employer_name": employer.get("name") or "",
-            "area_name": area_name,
-            "specialization": specialization,
-            "experience": experience_str,
-            "salary_net_from_byn": salary_net_from_byn,
-            "salary_net_to_byn": salary_net_to_byn,
-            "salary_gross_from_byn": salary_gross_from_byn,
-            "salary_gross_to_byn": salary_gross_to_byn,
-            "published_at": published_at,
-            "loaded_at": datetime.now().strftime("%d.%m.%Y %H:%M"),
-            "url": item.get("alternate_url") or "",
-        })
+        rows.append(
+            {
+                "logo_url": logo_url,
+                "name": item.get("name") or "",
+                "employer_name": employer.get("name") or "",
+                "area_name": area_name,
+                "specialization": specialization,
+                "experience": experience_str,
+                "salary_net_from_byn": salary_net_from_byn,
+                "salary_net_to_byn": salary_net_to_byn,
+                "salary_gross_from_byn": salary_gross_from_byn,
+                "salary_gross_to_byn": salary_gross_to_byn,
+                "published_at": published_at,
+                "loaded_at": datetime.now().strftime("%d.%m.%Y %H:%M"),
+                "url": item.get("alternate_url") or "",
+            }
+        )
 
     return rows
 
@@ -355,7 +371,8 @@ def filter_outliers_and_compute_stats(
         )
 
     rows_above_min = [
-        r for r in rows
+        r
+        for r in rows
         if r["_salary_lower_bound"] is None
         or r["_salary_lower_bound"] >= MIN_REASONABLE_SALARY_BYN
     ]
@@ -376,7 +393,8 @@ def filter_outliers_and_compute_stats(
 
     if lower is not None and upper is not None:
         filtered = [
-            r for r in rows_above_min
+            r
+            for r in rows_above_min
             if r["_salary_avg_gross"] is None
             or (lower <= r["_salary_avg_gross"] <= upper)
         ]
@@ -408,10 +426,14 @@ def filter_outliers_and_compute_stats(
         if avg is not None:
             values_avg.append(avg)
         floor = (
-            min(f_from, f_to) if (f_from is not None and f_to is not None) else (f_from or f_to)
+            min(f_from, f_to)
+            if (f_from is not None and f_to is not None)
+            else (f_from or f_to)
         )
         ceiling = (
-            max(f_from, f_to) if (f_from is not None and f_to is not None) else (f_from or f_to)
+            max(f_from, f_to)
+            if (f_from is not None and f_to is not None)
+            else (f_from or f_to)
         )
         if floor is not None and floor >= MIN_REASONABLE_SALARY_BYN:
             floors.append(floor)
@@ -463,16 +485,34 @@ def to_table_records(rows: list[dict]) -> list[dict]:
 def export_to_excel(rows: list[dict]) -> io.BytesIO:
     """Generate an Excel file from vacancy records."""
     headers = [
-        "Логотип", "Название вакансии", "Название компании", "Локация",
-        "Специализация", "Опыт работы", "ЗП net от (BYN)", "ЗП net до (BYN)",
-        "ЗП gross от (BYN)", "ЗП gross до (BYN)", "Ссылка на вакансию",
-        "Дата публикации", "Дата загрузки",
+        "Логотип",
+        "Название вакансии",
+        "Название компании",
+        "Локация",
+        "Специализация",
+        "Опыт работы",
+        "ЗП net от (BYN)",
+        "ЗП net до (BYN)",
+        "ЗП gross от (BYN)",
+        "ЗП gross до (BYN)",
+        "Ссылка на вакансию",
+        "Дата публикации",
+        "Дата загрузки",
     ]
     keys = [
-        "logo_url", "name", "employer_name", "area_name", "specialization",
-        "experience", "salary_net_from_byn", "salary_net_to_byn",
-        "salary_gross_from_byn", "salary_gross_to_byn", "url",
-        "published_at", "loaded_at",
+        "logo_url",
+        "name",
+        "employer_name",
+        "area_name",
+        "specialization",
+        "experience",
+        "salary_net_from_byn",
+        "salary_net_to_byn",
+        "salary_gross_from_byn",
+        "salary_gross_to_byn",
+        "url",
+        "published_at",
+        "loaded_at",
     ]
 
     wb = Workbook()

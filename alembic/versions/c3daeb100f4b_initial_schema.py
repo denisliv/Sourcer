@@ -211,6 +211,46 @@ def upgrade() -> None:
         unique=False,
     )
 
+    # --- benchmark_vacancies ---
+    op.create_table(
+        "benchmark_vacancies",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column(
+            "search_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("benchmark_searches.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("name", sa.String(500), nullable=False),
+        sa.Column("employer_name", sa.String(500), nullable=True),
+        sa.Column("area_name", sa.String(255), nullable=True),
+        sa.Column("specialization", sa.String(500), nullable=True),
+        sa.Column("experience", sa.String(255), nullable=True),
+        sa.Column("salary_net_from_byn", sa.Float(), nullable=True),
+        sa.Column("salary_net_to_byn", sa.Float(), nullable=True),
+        sa.Column("salary_gross_from_byn", sa.Float(), nullable=True),
+        sa.Column("salary_gross_to_byn", sa.Float(), nullable=True),
+        sa.Column("url", sa.String(1000), nullable=True),
+        sa.Column("logo_url", sa.String(1000), nullable=True),
+        sa.Column("published_at", sa.String(50), nullable=True),
+        sa.Column("loaded_at", sa.String(50), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+    op.create_index(
+        op.f("ix_benchmark_vacancies_search_id"),
+        "benchmark_vacancies",
+        ["search_id"],
+        unique=False,
+    )
+
     # --- assistant_chats ---
     op.create_table(
         "assistant_chats",
@@ -253,6 +293,8 @@ def downgrade() -> None:
     op.drop_table("assistant_messages")
     op.drop_index(op.f("ix_assistant_chats_user_id"), table_name="assistant_chats")
     op.drop_table("assistant_chats")
+    op.drop_index(op.f("ix_benchmark_vacancies_search_id"), table_name="benchmark_vacancies")
+    op.drop_table("benchmark_vacancies")
     op.drop_index(op.f("ix_benchmark_searches_user_id"), table_name="benchmark_searches")
     op.drop_table("benchmark_searches")
     op.drop_table("candidates")

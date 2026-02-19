@@ -12,7 +12,9 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import JSON, String, event
+import uuid as _uuid_mod
+
+from sqlalchemy import JSON, String, TypeDecorator, event
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -25,13 +27,30 @@ import app.models  # noqa: F401
 from app.models.user import User
 from app.models.session import Session
 
+
+class SQLiteUUID(TypeDecorator):
+    """Store UUID as String(36) in SQLite while converting uuid.UUID objects."""
+    impl = String(36)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if isinstance(value, _uuid_mod.UUID):
+            return str(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return str(value)
+        return value
+
+
 # Override PostgreSQL-specific column types for SQLite compatibility
 for table in Base.metadata.tables.values():
     for column in table.columns:
         if isinstance(column.type, JSONB):
             column.type = JSON()
         if isinstance(column.type, PG_UUID):
-            column.type = String(36)
+            column.type = SQLiteUUID()
 
 # Use in-memory SQLite for tests (no PostgreSQL required)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

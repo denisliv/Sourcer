@@ -198,6 +198,17 @@ class TestExportToExcel:
 
 # ---- API endpoint tests ----
 
+MOCK_TABLE_ROWS = [
+    {
+        "logo_url": None, "name": "Python Developer", "employer_name": "TestCo",
+        "area_name": "Minsk", "specialization": "IT", "experience": "3-6 лет",
+        "salary_net_from_byn": 2000, "salary_net_to_byn": 3000,
+        "salary_gross_from_byn": 2326, "salary_gross_to_byn": 3488,
+        "url": "https://hh.ru/vacancy/1", "published_at": "01.01.2026", "loaded_at": "01.01.2026",
+    },
+]
+
+
 class TestBenchmarkAPINoAuth:
     """Benchmark endpoints require authentication."""
 
@@ -210,9 +221,8 @@ class TestBenchmarkAPINoAuth:
         assert resp.status_code == 401
 
     def test_export_unauthenticated(self, client):
-        resp = client.post(
-            "/api/benchmark/export-excel",
-            json={"include": "python"},
+        resp = client.get(
+            "/api/benchmark/export?search_id=00000000-0000-0000-0000-000000000000",
             headers={"Accept": "application/json"},
         )
         assert resp.status_code == 401
@@ -249,19 +259,93 @@ class TestBenchmarkAPIAuth:
             data = resp.json()
             assert data["table"] == []
             assert data["stats"]["count"] == 0
+            assert "search_id" in data
 
-    def test_export_empty_results(self, client, user_session_token):
+    def test_search_returns_search_id_and_saves(self, client, user_session_token):
+        """Search saves data to DB and returns search_id."""
         with patch(
-            "app.api.benchmark.fetch_vacancies", new_callable=AsyncMock, return_value=[]
+            "app.api.benchmark.fetch_vacancies",
+            new_callable=AsyncMock, return_value=[{"items": [{
+                "name": "Python Dev", "employer": {"name": "Co", "logo_urls": None},
+                "area": {"name": "Minsk"}, "professional_roles": [],
+                "experience": {"name": "3-6 лет"},
+                "salary": {"from": 3000, "to": 5000, "currency": "BYN", "gross": True},
+                "alternate_url": "https://hh.ru/vacancy/1",
+                "published_at": "2026-01-15T10:00:00+0300",
+            }]}],
         ), patch(
-            "app.api.benchmark.process_vacancies_data", new_callable=AsyncMock, return_value=[]
+            "app.api.benchmark.process_vacancies_data",
+            new_callable=AsyncMock, return_value=[{
+                "logo_url": None, "name": "Python Dev", "employer_name": "Co",
+                "area_name": "Minsk", "specialization": "", "experience": "3-6 лет",
+                "salary_net_from_byn": 2580.0, "salary_net_to_byn": 4300.0,
+                "salary_gross_from_byn": 3000.0, "salary_gross_to_byn": 5000.0,
+                "url": "https://hh.ru/vacancy/1",
+                "published_at": "15.01.2026 10:00", "loaded_at": "19.02.2026 12:00",
+            }],
         ):
             resp = client.post(
-                "/api/benchmark/export-excel",
+                "/api/benchmark/search",
                 json={"include": "python developer"},
                 cookies={"session_token": user_session_token},
             )
-            assert resp.status_code == 404
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "search_id" in data
+            assert data["search_id"]
+            assert data["total_count"] >= 1
+
+    def test_export_not_found(self, client, user_session_token):
+        resp = client.get(
+            "/api/benchmark/export?search_id=00000000-0000-0000-0000-000000000000",
+            cookies={"session_token": user_session_token},
+        )
+        assert resp.status_code == 404
+
+    def test_export_invalid_id(self, client, user_session_token):
+        resp = client.get(
+            "/api/benchmark/export?search_id=bad-id",
+            cookies={"session_token": user_session_token},
+        )
+        assert resp.status_code == 400
+
+
+class TestBenchmarkExportFromDB:
+    """Export loads vacancies from DB instead of re-fetching."""
+
+    async def test_export_reads_vacancies_from_db(
+        self, async_client, db_session, regular_user, user_session_token,
+    ):
+        from app.models.benchmark import BenchmarkSearch, BenchmarkVacancy
+
+        bench = BenchmarkSearch(
+            user_id=regular_user.id,
+            query_text="python developer",
+            total_vacancies=1,
+            filtered_count=1,
+        )
+        db_session.add(bench)
+        await db_session.flush()
+
+        vacancy = BenchmarkVacancy(
+            search_id=bench.id,
+            name="Python Dev",
+            employer_name="Co",
+            area_name="Minsk",
+            salary_gross_from_byn=3000.0,
+            salary_gross_to_byn=5000.0,
+            url="https://hh.ru/vacancy/1",
+        )
+        db_session.add(vacancy)
+        await db_session.commit()
+
+        resp = await async_client.get(
+            f"/api/benchmark/export?search_id={bench.id}",
+            cookies={"session_token": user_session_token},
+        )
+        assert resp.status_code == 200
+        assert "spreadsheetml" in resp.headers["content-type"]
+        assert len(resp.content) > 100
 
 
 class TestBenchmarkPage:

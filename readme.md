@@ -24,7 +24,7 @@ HR-сервис Альфа-Банка. Включает три модуля:
 
 ### AlfaHRBenchmark
 
-Анализ рынка вакансий с зарплатными данными. Получает вакансии из HH API (по вакансиям, не резюме), конвертирует зарплаты в BYN через API Belarusbank, фильтрует выбросы методом IQR, рассчитывает статистику (min/max/mean/median). Поддерживает интерактивную гистограмму распределения зарплат и экспорт в Excel.
+Анализ рынка вакансий с зарплатными данными. Получает вакансии из HH API (по вакансиям, не резюме), конвертирует зарплаты в BYN через API Belarusbank, фильтрует выбросы методом IQR, рассчитывает статистику (min/max/mean/median). Результаты сохраняются в БД с историей поиска, поддержкой перезапуска и экспортом в Excel.
 
 **Возможности:**
 - Поиск вакансий по ключевым словам с исключающими фильтрами
@@ -34,6 +34,8 @@ HR-сервис Альфа-Банка. Включает три модуля:
 - Конвертация Gross ↔ Net (НДФЛ 14%)
 - Фильтрация выбросов: минимальный порог 500 BYN + метод IQR (Tukey)
 - Гистограмма распределения зарплат (Chart.js)
+- История поисков с возможностью перезапуска (rerun)
+- Сохранение вакансий в БД — экспорт из сохранённых данных (без повторного обращения к API)
 - Экспорт в Excel (.xlsx)
 
 **Доступ:** все авторизованные пользователи (без дополнительных credentials).
@@ -121,8 +123,8 @@ HR-сервис Альфа-Банка. Включает три модуля:
 | `details` | JSONB | Нет | Дополнительные данные события |
 | `created_at` | DateTime(TZ) | — | Дата события |
 
-**Типы `action`:** `login`, `logout`, `password_change`, `credential_update`, `credential_delete`, `search`, `export_csv`, `admin_create_user`, `admin_delete_user`, `benchmark_search`.  
-**Примеры `details`:** `{"provider": "hh"}`, `{"query": "...", "sources": "both", "results": 42}`, `{"query": "python developer", "total": 150, "filtered": 120}`.
+**Типы `action`:** `login`, `logout`, `password_change`, `credential_update`, `credential_delete`, `search`, `export_csv`, `admin_create_user`, `admin_delete_user`, `benchmark_search`, `benchmark_rerun`, `benchmark_export`.  
+**Примеры `details`:** `{"provider": "hh"}`, `{"query": "...", "sources": "both", "results": 42}`, `{"query": "python developer", "total": 150, "filtered": 120}`, `{"search_id": "...", "count": 85}`.
 
 #### 5. **searches** (Поиски — AlfaHRSourcer)
 
@@ -180,7 +182,31 @@ HR-сервис Альфа-Банка. Включает три модуля:
 **Индекс:** `ix_benchmark_searches_user_id` по `user_id`.  
 **Содержимое `query_params`:** `{"exclude": "...", "area": "16", "experience": "between1And3", "period": 30}`.
 
-#### 8. **assistant_chats** (Чаты — AlfaHRAssistent)
+#### 8. **benchmark_vacancies** (Вакансии — AlfaHRBenchmark)
+
+| Столбец | Тип | Шифрование | Содержимое и назначение |
+|---------|-----|------------|--------------------------|
+| `id` | UUID | — | Идентификатор вакансии |
+| `search_id` | UUID | — | Ссылка на benchmark_search (CASCADE) |
+| `name` | String(500) | Нет | Название вакансии |
+| `employer_name` | String(500) | Нет | Название компании |
+| `area_name` | String(255) | Нет | Локация |
+| `specialization` | String(500) | Нет | Специализация |
+| `experience` | String(255) | Нет | Требуемый опыт |
+| `salary_net_from_byn` | Float | — | ЗП net от (BYN) |
+| `salary_net_to_byn` | Float | — | ЗП net до (BYN) |
+| `salary_gross_from_byn` | Float | — | ЗП gross от (BYN) |
+| `salary_gross_to_byn` | Float | — | ЗП gross до (BYN) |
+| `url` | String(1000) | Нет | Ссылка на вакансию |
+| `logo_url` | String(1000) | Нет | URL логотипа компании |
+| `published_at` | String(50) | Нет | Дата публикации вакансии |
+| `loaded_at` | String(50) | Нет | Дата загрузки данных |
+| `created_at` | DateTime(TZ) | — | Дата добавления записи |
+
+**Индекс:** `ix_benchmark_vacancies_search_id` по `search_id`.  
+Аналог таблицы `candidates` для модуля Benchmark. Вакансии сохраняются после фильтрации выбросов — экспорт в Excel загружает данные из этой таблицы без повторного обращения к HH API.
+
+#### 9. **assistant_chats** (Чаты — AlfaHRAssistent)
 
 | Столбец | Тип | Шифрование | Содержимое и назначение |
 |---------|-----|------------|--------------------------|
@@ -192,7 +218,7 @@ HR-сервис Альфа-Банка. Включает три модуля:
 
 **Индекс:** `ix_assistant_chats_user_id` по `user_id`.
 
-#### 9. **assistant_messages** (Сообщения — AlfaHRAssistent)
+#### 10. **assistant_messages** (Сообщения — AlfaHRAssistent)
 
 | Столбец | Тип | Шифрование | Содержимое и назначение |
 |---------|-----|------------|--------------------------|
@@ -240,7 +266,9 @@ HR-сервис Альфа-Банка. Включает три модуля:
 | Метод | Путь | Описание |
 |-------|------|----------|
 | POST | `/api/benchmark/search` | Поиск вакансий + статистика ЗП |
-| POST | `/api/benchmark/export-excel` | Экспорт в Excel (.xlsx) |
+| GET | `/api/benchmark/history` | История поисков |
+| POST | `/api/benchmark/rerun/{id}` | Перезапуск поиска из истории |
+| GET | `/api/benchmark/export` | Экспорт в Excel (.xlsx) из БД |
 | GET | `/api/benchmark/rates` | Текущие курсы валют |
 
 ### AlfaHRAssistent
@@ -299,6 +327,7 @@ playwright install chromium
 
 ```bash
 docker run -d --name pg -p 5432:5432 \
+  -v pgdata:/var/lib/postgresql/data \
   -e POSTGRES_DB=hrservice \
   -e POSTGRES_USER=admin \
   -e POSTGRES_PASSWORD=admin \
@@ -415,7 +444,7 @@ docker compose down -v     # остановить и удалить данные
 │   │   ├── audit_log.py         # Журнал аудита
 │   │   ├── search.py            # Поиски (Sourcer)
 │   │   ├── candidate.py         # Кандидаты (Sourcer)
-│   │   ├── benchmark.py         # Поиски (Benchmark)
+│   │   ├── benchmark.py         # Поиски и вакансии (Benchmark)
 │   │   └── assistant.py         # Чаты и сообщения (Assistent)
 │   ├── services/
 │   │   ├── hh_service.py        # HH API (резюме)

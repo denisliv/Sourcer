@@ -37,3 +37,38 @@ class BenchmarkSearch(Base):
     )
 
     user = relationship("User", back_populates="benchmark_searches")
+    vacancies = relationship(
+        "BenchmarkVacancy", back_populates="search", cascade="all, delete-orphan"
+    )
+
+
+class BenchmarkVacancy(Base):
+    __tablename__ = "benchmark_vacancies"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    search_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("benchmark_searches.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    employer_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    area_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    specialization: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    experience: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    salary_net_from_byn: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salary_net_to_byn: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salary_gross_from_byn: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salary_gross_to_byn: Mapped[float | None] = mapped_column(Float, nullable=True)
+    url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    published_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    loaded_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    search = relationship("BenchmarkSearch", back_populates="vacancies")

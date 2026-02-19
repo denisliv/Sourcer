@@ -4,6 +4,7 @@ import asyncio
 import uuid as _uuid
 from datetime import datetime, timezone
 from io import StringIO
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
@@ -404,8 +405,10 @@ async def export_csv(
 
     buf.seek(0)
     filename = f"candidates_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    encoded = quote(filename, safe="")
+    content_disp = f'attachment; filename="candidates_export.csv"; filename*=UTF-8\'\'{encoded}'
     return StreamingResponse(
         buf,
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": content_disp},
     )

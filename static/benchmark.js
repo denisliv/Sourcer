@@ -65,6 +65,25 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch {}
     }
 
+    function fillFormFromParams(p) {
+        if (!p) return;
+        const inc = document.getElementById("benchInclude");
+        const exc = document.getElementById("benchExclude");
+        const area = document.getElementById("benchArea");
+        const period = document.getElementById("benchPeriod");
+        if (inc && p.include != null) inc.value = p.include || "";
+        if (exc && p.exclude != null) exc.value = p.exclude || "";
+        if (area && p.area != null) area.value = p.area || "16";
+        if (period && p.period != null) period.value = String(p.period);
+        const expVal = p.experience || "";
+        const expRadio = document.querySelector(`input[name="benchExperience"][value="${expVal}"]`);
+        if (expRadio) expRadio.checked = true;
+        else {
+            const defRadio = document.querySelector('input[name="benchExperience"][value=""]');
+            if (defRadio) defRadio.checked = true;
+        }
+    }
+
     async function openHistoryBenchmark(searchId) {
         hideError();
         loader.style.display = "block";
@@ -78,6 +97,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 showError(json.error || "Не удалось загрузить результаты");
                 return;
             }
+            if (json.query_params) fillFormFromParams(json.query_params);
+            lastBenchSearchId = json.search_id || searchId;
             displayResults(json);
             benchHistorySection?.classList.add("collapsed");
         } catch (err) {
@@ -86,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
             loader.style.display = "none";
         }
     }
+    let lastBenchSearchId = null;
     let currentTableData = [];
     let currentPage = 1;
     let salaryChart = null;
@@ -128,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            lastBenchSearchId = json.search_id || null;
             displayResults(json);
             loadBenchHistory();
         } catch (err) {
@@ -140,40 +163,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadBenchHistory();
 
-    // Export
-    btnExport.addEventListener("click", async () => {
-        const data = getFormData();
-        if (!data.include) {
-            showError("Сначала выполните поиск");
-            return;
-        }
-
-        try {
-            const resp = await fetch("/api/benchmark/export-excel", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(data),
-            });
-
-            if (!resp.ok) {
-                const err = await resp.json();
-                showError(err.error || "Ошибка выгрузки");
-                return;
-            }
-
-            const blob = await resp.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `vacancies_${data.include.substring(0, 30).replace(/\s/g, "_")}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-        } catch (err) {
-            showError("Ошибка при выгрузке: " + err.message);
-        }
+    // Export (same pattern as HH: GET + window.open)
+    btnExport.addEventListener("click", () => {
+        if (!lastBenchSearchId) return;
+        window.open(`/api/benchmark/export?search_id=${encodeURIComponent(lastBenchSearchId)}`, "_blank");
     });
 
     function displayResults(data) {
