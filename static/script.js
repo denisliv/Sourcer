@@ -19,7 +19,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function getFormData() {
         const searchText = (document.getElementById("searchText")?.value ?? "").trim();
         const searchInPositions = document.getElementById("searchInPositions")?.checked ?? false;
+        const searchCompany = (document.getElementById("searchCompany")?.value ?? "").trim();
         const searchSkills = (document.getElementById("searchSkills")?.value ?? "").trim();
+        const searchSkillsField = (document.querySelector('input[name="searchSkillsField"]:checked')?.value ?? "skills");
         const excludeTitle = (document.getElementById("excludeTitle")?.value ?? "").trim();
         const excludeCompany = (document.getElementById("excludeCompany")?.value ?? "").trim();
         const area = document.getElementById("area")?.value ?? "16";
@@ -30,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const experience = [...document.querySelectorAll('input[name="experience"]:checked')]
             .map(el => el.value);
 
-        return { searchText, searchInPositions, searchSkills, excludeTitle, excludeCompany, experience, area, period, count, sources };
+        return { searchText, searchInPositions, searchCompany, searchSkills, searchSkillsField, excludeTitle, excludeCompany, experience, area, period, count, sources };
     }
 
     // Build query string
@@ -38,7 +40,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const params = new URLSearchParams();
         params.append("search_text", data.searchText);
         params.append("search_in_positions", data.searchInPositions ? "true" : "false");
+        params.append("search_company", data.searchCompany);
         params.append("search_skills", data.searchSkills);
+        params.append("search_skills_field", data.searchSkillsField || "skills");
         params.append("exclude_title", data.excludeTitle);
         params.append("exclude_company", data.excludeCompany);
         data.experience.forEach(e => params.append("experience", e));
@@ -71,6 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         pageCandidates.forEach((c) => {
             const tr = document.createElement("tr");
+            if (c.is_viewed) tr.classList.add("tr-visited");
 
             // Photo
             const tdPhoto = document.createElement("td");
@@ -139,6 +144,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 a.target = "_blank";
                 a.rel = "noopener noreferrer";
                 a.textContent = "Открыть";
+                if (c.external_id) {
+                    a.addEventListener("click", () => {
+                        fetch("/api/candidate-view", {
+                            method: "POST",
+                            credentials: "include",
+                            headers: {"Content-Type": "application/json"},
+                            body: JSON.stringify({ source: c.source || "hh", external_id: c.external_id }),
+                        }).then(r => {
+                            if (r.ok) {
+                                tr.classList.add("tr-visited");
+                                c.is_viewed = true;
+                            }
+                        }).catch(() => {});
+                    });
+                }
                 tdLink.appendChild(a);
             } else {
                 tdLink.textContent = "—";
@@ -179,8 +199,8 @@ document.addEventListener("DOMContentLoaded", () => {
     btnSearch.addEventListener("click", async () => {
         const data = getFormData();
 
-        if (!data.searchText && !data.searchSkills) {
-            showError("Укажите поисковый запрос (название резюме или навыки)");
+        if (!data.searchText && !data.searchSkills && !data.searchCompany) {
+            showError("Укажите поисковый запрос (название резюме, навыки или компания)");
             return;
         }
 
@@ -229,10 +249,42 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load history on init
     loadHistory();
 
+    const EXP_LABELS = {
+        noExperience: "Без опыта",
+        between1And3: "1–3 года",
+        between3And6: "3–6 лет",
+        moreThan6: "6+ лет",
+    };
+
+    function buildAreaMap() {
+        const map = {};
+        document.querySelectorAll("#area option").forEach(o => { map[o.value] = o.textContent; });
+        return map;
+    }
+    const AREA_MAP = buildAreaMap();
+
+    function buildHistoryParams(qp) {
+        if (!qp) return "";
+        const parts = [];
+        if (qp.search_skills) parts.push("Навыки: " + qp.search_skills);
+        if (qp.search_company) parts.push("Компания: " + qp.search_company);
+        if (qp.search_in_positions) parts.push("В должностях");
+        if (qp.search_skills_field === "everywhere") parts.push("Навыки: везде");
+        if (qp.exclude_title) parts.push("Искл. название: " + qp.exclude_title);
+        if (qp.exclude_company) parts.push("Искл. компания: " + qp.exclude_company);
+        if (Array.isArray(qp.experience) && qp.experience.length > 0) {
+            parts.push("Опыт: " + qp.experience.map(e => EXP_LABELS[e] || e).join(", "));
+        }
+        if (qp.area && AREA_MAP[String(qp.area)]) parts.push("Регион: " + AREA_MAP[String(qp.area)]);
+        if (qp.period) parts.push(qp.period + " дн.");
+        if (qp.count) parts.push("Кол-во: " + qp.count);
+        return parts.join(" · ");
+    }
+
     // Load and render search history
     async function loadHistory() {
         try {
-            const resp = await fetch("/api/search/history?per_page=15", { credentials: "include" });
+            const resp = await fetch("/api/search/history?per_page=20", { credentials: "include" });
             if (!resp.ok) return;
             const json = await resp.json();
             const list = document.getElementById("historyList");
@@ -249,10 +301,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 div.className = "history-item";
                 const dateStr = item.created_at ? formatDate(item.created_at) : "—";
                 const srcLabel = item.sources === "both" ? "HH+LI" : (item.sources === "linkedin" ? "LI" : "HH");
+                const paramsSummary = buildHistoryParams(item.query_params);
                 div.innerHTML = `
                     <div class="history-item-info">
                         <div class="history-item-query">${escapeHtml(item.query_text || "(пусто)")}</div>
                         <div class="history-item-meta">${dateStr} · ${item.total_results} рез. · ${srcLabel}</div>
+                        ${paramsSummary ? `<div class="history-item-params">${escapeHtml(paramsSummary)}</div>` : ""}
                     </div>
                     <div class="history-item-actions">
                         <button type="button" class="btn-outline btn-sm history-btn-open" data-id="${item.id}">Открыть</button>
@@ -328,7 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
     resultsNext.addEventListener("click", () => goToPage(currentPage + 1));
 
     // Enter key triggers search
-    ["searchText", "searchSkills"].forEach(id => {
+    ["searchText", "searchCompany", "searchSkills"].forEach(id => {
         document.getElementById(id)?.addEventListener("keydown", (e) => {
             if (e.key === "Enter") btnSearch.click();
         });

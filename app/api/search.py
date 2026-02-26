@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 from io import StringIO
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Body, Depends, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
@@ -16,6 +17,7 @@ from app.core.config import HH_DEFAULT_AREA, HH_AREAS_DICT
 from app.core.database import get_db
 from app.core.security import decrypt_credentials, encrypt_credentials
 from app.models.candidate import Candidate as CandidateModel
+from app.models.candidate_view import CandidateView
 from app.models.credential import Credential
 from app.models.search import Search as SearchModel
 from app.models.user import User
@@ -28,12 +30,20 @@ router = APIRouter(tags=["search"])
 
 # ── helpers ───────────────────────────────────────────────────────
 
-def _candidate_to_ui(c: CandidateModel) -> dict:
+def _candidate_to_ui(
+    c: CandidateModel,
+    viewed_keys: set[tuple[str, str]] | None = None,
+) -> dict:
     """Convert Candidate model to UI format."""
     extra = c.extra_data or {}
     fetched = c.created_at.strftime("%d.%m.%Y %H:%M") if c.created_at else "—"
+    source = c.source or "hh"
+    ext_id = c.external_id or ""
+    is_viewed = (source, ext_id) in viewed_keys if viewed_keys else False
     return {
-        "source": c.source or "hh",
+        "source": source,
+        "external_id": ext_id,
+        "is_viewed": is_viewed,
         "photo": extra.get("photo"),
         "full_name": c.full_name or "—",
         "title": c.current_title or "—",
@@ -45,6 +55,24 @@ def _candidate_to_ui(c: CandidateModel) -> dict:
         "updated_at": extra.get("updated_at", "—"),
         "fetched_at": fetched,
     }
+
+
+async def _load_viewed_keys(
+    db: AsyncSession,
+    user_id: _uuid.UUID,
+    pairs: list[tuple[str, str]],
+) -> set[tuple[str, str]]:
+    """Return set of (source, external_id) pairs the user has already viewed."""
+    if not pairs:
+        return set()
+    result = await db.execute(
+        select(CandidateView.source, CandidateView.external_id)
+        .where(
+            CandidateView.user_id == user_id,
+            tuple_(CandidateView.source, CandidateView.external_id).in_(pairs),
+        )
+    )
+    return set(result.all())
 
 
 # ── search history ────────────────────────────────────────────────
@@ -128,12 +156,36 @@ async def search_results(
         select(CandidateModel).where(CandidateModel.search_id == sid)
     )
     candidates = result.scalars().all()
+    pairs = [(c.source or "hh", c.external_id or "") for c in candidates if c.external_id]
+    viewed_keys = await _load_viewed_keys(db, user.id, pairs)
     return {
         "error": False,
         "search_id": search_id,
         "total_found": search.total_results or len(candidates),
-        "candidates": [_candidate_to_ui(c) for c in candidates],
+        "candidates": [_candidate_to_ui(c, viewed_keys) for c in candidates],
     }
+
+
+# ── candidate view tracking ───────────────────────────────────────
+
+@router.post("/api/candidate-view")
+async def mark_candidate_viewed(
+    source: str = Body(..., embed=True),
+    external_id: str = Body(..., embed=True),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Record that the user has viewed a candidate profile."""
+    stmt = pg_insert(CandidateView).values(
+        user_id=user.id,
+        source=source,
+        external_id=external_id,
+    ).on_conflict_do_nothing(
+        constraint="uq_candidate_views_user_source_ext",
+    )
+    await db.execute(stmt)
+    await db.flush()
+    return {"ok": True}
 
 
 # ── search endpoint ───────────────────────────────────────────────
@@ -167,7 +219,9 @@ async def search_resumes(
     request: Request,
     search_text: str = Query("", description="Поиск в названии резюме"),
     search_in_positions: bool = Query(False, description="Искать также в должностях"),
+    search_company: str = Query("", description="Поиск по компании/отрасли"),
     search_skills: str = Query("", description="Поиск в навыках"),
+    search_skills_field: str = Query("skills", description="Где искать навыки: skills | everywhere"),
     exclude_title: str = Query("", description="Исключить из названия резюме"),
     exclude_company: str = Query("", description="Исключить компанию/отрасль"),
     experience: list[str] = Query([], description="Опыт"),
@@ -183,8 +237,8 @@ async def search_resumes(
     if not use_hh and not use_linkedin:
         return {"error": True, "message": "Выберите хотя бы один источник поиска."}
 
-    if not search_text.strip() and not search_skills.strip():
-        return {"error": True, "message": "Укажите поисковый запрос (название резюме или навыки)."}
+    if not search_text.strip() and not search_skills.strip() and not search_company.strip():
+        return {"error": True, "message": "Укажите поисковый запрос (название резюме, навыки или компания)."}
 
     if area not in HH_AREAS_DICT:
         area = HH_DEFAULT_AREA
@@ -192,10 +246,12 @@ async def search_resumes(
     count = max(1, min(count, MAX_TOTAL))
     search_record = SearchModel(
         user_id=user.id,
-        query_text=search_text or search_skills or "(пусто)",
+        query_text=search_text or search_skills or search_company or "(пусто)",
         query_params={
             "search_in_positions": search_in_positions,
+            "search_company": search_company,
             "search_skills": search_skills,
+            "search_skills_field": search_skills_field,
             "exclude_title": exclude_title,
             "exclude_company": exclude_company,
             "experience": experience,
@@ -226,6 +282,8 @@ async def search_resumes(
                 search_text=search_text,
                 search_in_positions=search_in_positions,
                 search_skills=search_skills,
+                search_skills_field=search_skills_field,
+                search_company=search_company,
                 exclude_title=exclude_title,
                 exclude_company=exclude_company,
                 experience=experience,
@@ -304,6 +362,8 @@ async def search_resumes(
         ext_id = c.get("urn_id") or ""
         if not ext_id and c.get("url"):
             ext_id = c["url"].split("/in/")[-1].rstrip("/").split("?")[0] or ""
+        c.setdefault("source", "linkedin")
+        c["external_id"] = ext_id
         db.add(CandidateModel(
             search_id=search_record.id,
             source="linkedin",
@@ -341,6 +401,15 @@ async def search_resumes(
 
     if not candidates and has_error:
         return {"error": True, "message": "; ".join(m for m in [hh_error, li_error] if m)}
+
+    pairs = [
+        (c.get("source", "hh"), c.get("external_id", ""))
+        for c in candidates if c.get("external_id")
+    ]
+    viewed_keys = await _load_viewed_keys(db, user.id, pairs)
+    for c in candidates:
+        key = (c.get("source", "hh"), c.get("external_id", ""))
+        c["is_viewed"] = key in viewed_keys
 
     total_found_val = hh_total_found if (use_hh and not use_linkedin) else (
         hh_total_found + len(li_candidates) if use_hh else len(li_candidates)

@@ -33,6 +33,8 @@ def build_params(
     search_text: str,
     search_in_positions: bool,
     search_skills: str,
+    search_skills_field: str,
+    search_company: str,
     exclude_title: str,
     exclude_company: str,
     experience: list[str],
@@ -55,10 +57,18 @@ def build_params(
         params.append(("text.field", ",".join(fields)))
         params.append(("text.period", "all_time"))
 
-    if search_skills.strip():
-        params.append(("text", search_skills.strip()))
+    if search_company.strip():
+        params.append(("text", search_company.strip()))
         params.append(("text.logic", "all"))
-        params.append(("text.field", "skills"))
+        params.append(("text.field", "experience_company"))
+        params.append(("text.period", "all_time"))
+
+    if search_skills.strip():
+        skills_field = "everywhere" if search_skills_field == "everywhere" else "skills"
+        skills_text = " ".join(s.strip() for s in search_skills.split(",") if s.strip())
+        params.append(("text", skills_text))
+        params.append(("text.logic", "all"))
+        params.append(("text.field", skills_field))
         params.append(("text.period", "all_time"))
 
     for exp in experience:
@@ -215,6 +225,8 @@ async def run_hh_search(
     search_text: str,
     search_in_positions: bool,
     search_skills: str,
+    search_skills_field: str,
+    search_company: str,
     exclude_title: str,
     exclude_company: str,
     experience: list[str],
@@ -235,6 +247,8 @@ async def run_hh_search(
                 search_text=search_text,
                 search_in_positions=search_in_positions,
                 search_skills=search_skills,
+                search_skills_field=search_skills_field,
+                search_company=search_company,
                 exclude_title=exclude_title,
                 exclude_company=exclude_company,
                 experience=experience,

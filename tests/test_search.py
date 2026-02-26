@@ -83,6 +83,8 @@ class TestBuildParams:
             search_text="Python",
             search_in_positions=False,
             search_skills="",
+            search_skills_field="skills",
+            search_company="",
             exclude_title="",
             exclude_company="",
             experience=[],
@@ -101,6 +103,8 @@ class TestBuildParams:
             search_text="",
             search_in_positions=False,
             search_skills="FastAPI, Docker",
+            search_skills_field="skills",
+            search_company="",
             exclude_title="",
             exclude_company="",
             experience=[],
@@ -110,13 +114,15 @@ class TestBuildParams:
             per_page=20,
         )
         texts = [v for k, v in params if k == "text"]
-        assert "FastAPI, Docker" in texts
+        assert "FastAPI Docker" in texts  # запятые заменяются на пробелы
 
     def test_exclude_fields(self):
         params = build_params(
             search_text="Developer",
             search_in_positions=True,
             search_skills="",
+            search_skills_field="skills",
+            search_company="",
             exclude_title="Manager",
             exclude_company="Google",
             experience=["between3And6"],
@@ -132,6 +138,45 @@ class TestBuildParams:
         assert "except" in logics
         experiences = [v for k, v in params if k == "experience"]
         assert "between3And6" in experiences
+
+    def test_search_company_added(self):
+        params = build_params(
+            search_text="",
+            search_in_positions=False,
+            search_skills="",
+            search_skills_field="skills",
+            search_company="Epam",
+            exclude_title="",
+            exclude_company="",
+            experience=[],
+            area=16,
+            period=30,
+            page=0,
+            per_page=50,
+        )
+        param_dict = dict(params)
+        field_vals = [v for k, v in params if k == "text.field"]
+        assert "experience_company" in field_vals
+        texts = [v for k, v in params if k == "text"]
+        assert "Epam" in texts
+
+    def test_skills_field_everywhere(self):
+        params = build_params(
+            search_text="",
+            search_in_positions=False,
+            search_skills="Python",
+            search_skills_field="everywhere",
+            search_company="",
+            exclude_title="",
+            exclude_company="",
+            experience=[],
+            area=16,
+            period=30,
+            page=0,
+            per_page=50,
+        )
+        field_vals = [v for k, v in params if k == "text.field"]
+        assert "everywhere" in field_vals
 
 
 class TestNormalizeSources:

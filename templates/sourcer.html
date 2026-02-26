@@ -34,14 +34,19 @@
             <div class="search-row-main">
                 <div class="form-group form-group-search">
                     <label for="searchText">Поиск в названии резюме</label>
-                    <div class="search-input-row">
+                    <div class="search-input-row search-input-row-equal">
                         <input type="text" id="searchText" placeholder="Например: Python developer" autocomplete="off">
-                        <label class="cb cb-attached"><input type="checkbox" id="searchInPositions" name="searchInPositions"><span>Искать в должностях</span></label>
+                        <input type="text" id="searchCompany" placeholder="Компания / отрасль" autocomplete="off">
                     </div>
+                    <label class="cb cb-below"><input type="checkbox" id="searchInPositions" name="searchInPositions"><span>Искать в должностях</span></label>
                 </div>
                 <div class="form-group form-group-skills">
                     <label for="searchSkills">Навыки</label>
-                    <input type="text" id="searchSkills" placeholder="Python, Django, SQL" autocomplete="off">
+                    <input type="text" id="searchSkills" placeholder="Python Django SQL" autocomplete="off">
+                    <div class="skills-field-radios">
+                        <label class="chip skills-radio"><input type="radio" name="searchSkillsField" value="skills" checked><span>Только в навыках</span></label>
+                        <label class="chip skills-radio"><input type="radio" name="searchSkillsField" value="everywhere"><span>Везде</span></label>
+                    </div>
                 </div>
             </div>
 
@@ -188,6 +193,6 @@ fetch("/api/auth/me", { credentials: "include" })
 })();
 </script>
 <div id="devToast" class="toast-dev" style="display:none;"></div>
-<script src="/static/script.js?v=7"></script>
+<script src="/static/script.js?v=8"></script>
 </body>
 </html>

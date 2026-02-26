@@ -141,7 +141,7 @@ HR-сервис Альфа-Банка. Включает три модуля:
 | `created_at` | DateTime(TZ) | — | Время начала поиска |
 | `completed_at` | DateTime(TZ) | — | Время завершения поиска |
 
-**Содержимое `query_params`:** `search_in_positions`, `search_skills`, `exclude_title`, `exclude_company`, `experience`, `area`, `period`, `count`, `sources`.
+**Содержимое `query_params`:** `search_in_positions`, `search_company`, `search_skills`, `search_skills_field`, `exclude_title`, `exclude_company`, `experience`, `area`, `period`, `count`, `sources`.
 
 #### 6. **candidates** (Кандидаты)
 
