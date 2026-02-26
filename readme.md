@@ -34,7 +34,7 @@ HR-сервис Альфа-Банка. Включает три модуля:
 - Конвертация Gross ↔ Net (НДФЛ 14%)
 - Фильтрация выбросов: минимальный порог 500 BYN + метод IQR (Tukey)
 - Гистограмма распределения зарплат (Chart.js)
-- История поисков с возможностью перезапуска (rerun)
+- История поисков с открытием сохранённых результатов из БД
 - Сохранение вакансий в БД — экспорт из сохранённых данных (без повторного обращения к API)
 - Экспорт в Excel (.xlsx)
 
@@ -123,7 +123,7 @@ HR-сервис Альфа-Банка. Включает три модуля:
 | `details` | JSONB | Нет | Дополнительные данные события |
 | `created_at` | DateTime(TZ) | — | Дата события |
 
-**Типы `action`:** `login`, `logout`, `password_change`, `credential_update`, `credential_delete`, `search`, `export_csv`, `admin_create_user`, `admin_delete_user`, `benchmark_search`, `benchmark_rerun`, `benchmark_export`.  
+**Типы `action`:** `login`, `logout`, `password_change`, `credential_update`, `credential_delete`, `search`, `export_csv`, `admin_create_user`, `admin_delete_user`, `benchmark_search`, `benchmark_open`, `benchmark_export`.  
 **Примеры `details`:** `{"provider": "hh"}`, `{"query": "...", "sources": "both", "results": 42}`, `{"query": "python developer", "total": 150, "filtered": 120}`, `{"search_id": "...", "count": 85}`.
 
 #### 5. **searches** (Поиски — AlfaHRSourcer)
@@ -267,7 +267,7 @@ HR-сервис Альфа-Банка. Включает три модуля:
 |-------|------|----------|
 | POST | `/api/benchmark/search` | Поиск вакансий + статистика ЗП |
 | GET | `/api/benchmark/history` | История поисков |
-| POST | `/api/benchmark/rerun/{id}` | Перезапуск поиска из истории |
+| GET | `/api/benchmark/open/{id}` | Открытие поиска из истории (данные из БД) |
 | GET | `/api/benchmark/export` | Экспорт в Excel (.xlsx) из БД |
 | GET | `/api/benchmark/rates` | Текущие курсы валют |
 

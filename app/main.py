@@ -98,7 +98,12 @@ async def sourcer_page(request: Request):
 @app.get("/benchmark", response_class=HTMLResponse)
 async def benchmark_page(request: Request):
     """Serve the AlfaHRBenchmark page (auth check is done client-side via /api/auth/me)."""
-    from app.core.config import BENCHMARK_AREAS, BENCHMARK_EXPERIENCE_OPTIONS, BENCHMARK_PERIOD_OPTIONS
+    from app.core.config import (
+        BENCHMARK_AREAS,
+        BENCHMARK_EXPERIENCE_OPTIONS,
+        BENCHMARK_INDUSTRIES,
+        BENCHMARK_PERIOD_OPTIONS,
+    )
     return templates.TemplateResponse("benchmark.html", {
         "request": request,
         "period_options": BENCHMARK_PERIOD_OPTIONS,
@@ -107,6 +112,7 @@ async def benchmark_page(request: Request):
             for k, v in BENCHMARK_EXPERIENCE_OPTIONS.items()
         ],
         "area_options": [{"value": k, "label": v} for k, v in BENCHMARK_AREAS.items()],
+        "industry_options": [{"value": k, "label": v} for k, v in BENCHMARK_INDUSTRIES.items()],
     })
 
 

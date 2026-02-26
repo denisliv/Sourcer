@@ -20,6 +20,61 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Industry dropdown
+    const benchIndustryTrigger = document.getElementById("benchIndustryTrigger");
+    const benchIndustryPanel = document.getElementById("benchIndustryPanel");
+    const benchIndustryLabel = document.getElementById("benchIndustryLabel");
+
+    const benchIndustryHeader = document.getElementById("benchIndustryHeader");
+    const benchIndustrySelectedCount = document.getElementById("benchIndustrySelectedCount");
+    const benchIndustryClear = document.getElementById("benchIndustryClear");
+
+    function updateIndustryLabel() {
+        const checked = document.querySelectorAll('input[name="benchIndustry"]:checked');
+        if (checked.length === 0) {
+            benchIndustryLabel.textContent = "Без фильтра";
+        } else if (checked.length === 1) {
+            benchIndustryLabel.textContent = checked[0].parentElement.querySelector("span").textContent;
+        } else {
+            benchIndustryLabel.textContent = `Выбрано: ${checked.length}`;
+        }
+        if (benchIndustryHeader && benchIndustrySelectedCount) {
+            if (checked.length >= 2) {
+                benchIndustryHeader.classList.remove("hidden");
+                benchIndustrySelectedCount.textContent = `Выбрано: ${checked.length}`;
+            } else {
+                benchIndustryHeader.classList.add("hidden");
+                benchIndustrySelectedCount.textContent = "";
+            }
+        }
+    }
+
+    if (benchIndustryTrigger && benchIndustryPanel) {
+        benchIndustryTrigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isOpen = !benchIndustryPanel.hidden;
+            benchIndustryPanel.hidden = isOpen;
+            benchIndustryTrigger.setAttribute("aria-expanded", !isOpen);
+        });
+        document.querySelectorAll('input[name="benchIndustry"]').forEach((cb) => {
+            cb.addEventListener("change", updateIndustryLabel);
+        });
+        if (benchIndustryClear) {
+            benchIndustryClear.addEventListener("click", (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('input[name="benchIndustry"]:checked').forEach((cb) => {
+                    cb.checked = false;
+                });
+                updateIndustryLabel();
+            });
+        }
+        document.addEventListener("click", () => {
+            benchIndustryPanel.hidden = true;
+            benchIndustryTrigger.setAttribute("aria-expanded", "false");
+        });
+        benchIndustryPanel.addEventListener("click", (e) => e.stopPropagation());
+    }
+
     // History toggle
     const benchHistorySection = document.getElementById("benchHistorySection");
     const benchHistoryToggle = document.getElementById("benchHistoryToggle");
@@ -75,6 +130,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (exc && p.exclude != null) exc.value = p.exclude || "";
         if (area && p.area != null) area.value = p.area || "16";
         if (period && p.period != null) period.value = String(p.period);
+        document.querySelectorAll('input[name="benchIndustry"]').forEach((cb) => {
+            cb.checked = Array.isArray(p.industry) && p.industry.includes(cb.value);
+        });
+        updateIndustryLabel();
         const expVal = p.experience || "";
         const expRadio = document.querySelector(`input[name="benchExperience"][value="${expVal}"]`);
         if (expRadio) expRadio.checked = true;
@@ -88,8 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
         hideError();
         loader.style.display = "block";
         try {
-            const resp = await fetch(`/api/benchmark/rerun/${searchId}`, {
-                method: "POST",
+            const resp = await fetch(`/api/benchmark/open/${searchId}`, {
                 credentials: "include",
             });
             const json = await resp.json();
@@ -113,12 +171,16 @@ document.addEventListener("DOMContentLoaded", () => {
     let salaryChart = null;
 
     function getFormData() {
+        const industryValues = Array.from(
+            document.querySelectorAll('input[name="benchIndustry"]:checked')
+        ).map((cb) => cb.value);
         return {
             include: (document.getElementById("benchInclude")?.value ?? "").trim(),
             exclude: (document.getElementById("benchExclude")?.value ?? "").trim(),
             area: document.getElementById("benchArea")?.value ?? "16",
             experience: document.querySelector('input[name="benchExperience"]:checked')?.value ?? "",
             period: parseInt(document.getElementById("benchPeriod")?.value ?? "30", 10),
+            industry: industryValues,
         };
     }
 

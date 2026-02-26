@@ -309,6 +309,62 @@ class TestBenchmarkAPIAuth:
         )
         assert resp.status_code == 400
 
+    def test_open_unauthenticated(self, client):
+        resp = client.get(
+            "/api/benchmark/open/00000000-0000-0000-0000-000000000000",
+            headers={"Accept": "application/json"},
+        )
+        assert resp.status_code == 401
+
+
+class TestBenchmarkOpenFromDB:
+    """Open loads search from DB (no API re-fetch)."""
+
+    async def test_open_reads_from_db(
+        self, async_client, db_session, regular_user, user_session_token,
+    ):
+        from app.models.benchmark import BenchmarkSearch, BenchmarkVacancy
+
+        bench = BenchmarkSearch(
+            user_id=regular_user.id,
+            query_text="python developer",
+            query_params={"area": "16", "exclude": "", "period": 30},
+            total_vacancies=1,
+            filtered_count=1,
+            stat_min=3000,
+            stat_max=5000,
+            stat_mean=4000,
+            stat_median=4000,
+        )
+        db_session.add(bench)
+        await db_session.flush()
+
+        vacancy = BenchmarkVacancy(
+            search_id=bench.id,
+            name="Python Dev",
+            employer_name="Co",
+            area_name="Minsk",
+            salary_net_from_byn=2580.0,
+            salary_net_to_byn=4300.0,
+            salary_gross_from_byn=3000.0,
+            salary_gross_to_byn=5000.0,
+            url="https://hh.ru/vacancy/1",
+        )
+        db_session.add(vacancy)
+        await db_session.commit()
+
+        resp = await async_client.get(
+            f"/api/benchmark/open/{bench.id}",
+            cookies={"session_token": user_session_token},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["search_id"] == str(bench.id)
+        assert data["total_count"] == 1
+        assert len(data["table"]) == 1
+        assert data["table"][0]["name"] == "Python Dev"
+        assert data["stats"]["count"] == 1
+
 
 class TestBenchmarkExportFromDB:
     """Export loads vacancies from DB instead of re-fetching."""

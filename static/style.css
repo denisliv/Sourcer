@@ -659,6 +659,133 @@ main {
     min-width: 130px;
 }
 
+/* Industry dropdown with checkboxes */
+.search-row-industry {
+    margin-top: 0.5rem;
+}
+
+.form-group-industry-dropdown {
+    max-width: 320px;
+}
+
+.industry-dropdown {
+    position: relative;
+}
+
+.industry-dropdown-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 200px;
+    padding: 0.5rem 0.85rem;
+    margin-top: 0.4rem;
+    background: #fff;
+    border: 1.5px solid var(--blue-200);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--gray-700);
+    cursor: pointer;
+    text-align: left;
+}
+
+.industry-dropdown-trigger:hover {
+    border-color: var(--blue-300);
+}
+
+.industry-dropdown-trigger:focus {
+    outline: none;
+    border-color: var(--blue-400);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+
+.industry-dropdown-arrow {
+    font-size: 0.7rem;
+    color: var(--gray-500);
+    margin-left: 0.5rem;
+}
+
+.industry-dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 2px;
+    min-width: 100%;
+    max-height: 240px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1.5px solid var(--blue-200);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    z-index: 50;
+    padding: 0.35rem;
+}
+
+.industry-dropdown-panel:not([hidden]) {
+    display: block;
+}
+
+.industry-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0.6rem 0.5rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid var(--blue-100);
+}
+
+.industry-dropdown-header.hidden {
+    display: none;
+}
+
+.industry-dropdown-selected-count {
+    font-size: 0.82rem;
+    color: var(--gray-600);
+}
+
+.industry-dropdown-clear {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8rem;
+    color: var(--blue-600);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.industry-dropdown-clear:hover {
+    background: var(--blue-50);
+    color: var(--blue-700);
+}
+
+/* Отключаем наследование от .form-group label:first-child */
+.industry-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.88rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--gray-700);
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.industry-dropdown-item:hover {
+    background: var(--blue-50);
+}
+
+.industry-dropdown-item input {
+    accent-color: var(--blue-600);
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+}
+
 .form-group-count {
     min-width: 0;
 }

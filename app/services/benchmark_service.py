@@ -57,7 +57,7 @@ def _get_host_for_area(area_id: int) -> str:
     return "rabota.by" if area_id == 16 else "hh.ru"
 
 
-async def fetch_belarusbank_rates(
+async def fetch_exchange_rates(
     city: str = BELARUSBANK_API_CITY,
 ) -> dict[str, float] | None:
     """Load exchange rates from Belarusbank API (async)."""
@@ -98,7 +98,7 @@ async def get_exchange_rates() -> dict[str, float]:
         if elapsed < CACHE_TTL_SECONDS:
             return _exchange_rates_cache
 
-    rates = await fetch_belarusbank_rates()
+    rates = await fetch_exchange_rates()
     if rates:
         _exchange_rates_cache = rates.copy()
         _exchange_rates_updated_at = now
@@ -201,6 +201,7 @@ async def fetch_vacancies(
     areas: list[int],
     experience: str | None,
     period: int,
+    industries: list[int] | None = None,
 ) -> list[dict]:
     """Fetch vacancies from the HH vacancies API (app-level token, async)."""
     data: list[dict] = []
@@ -227,6 +228,8 @@ async def fetch_vacancies(
                     params["experience"] = experience
                 if excluded_text.strip():
                     params["excluded_text"] = excluded_text.strip()
+                if industries:
+                    params["industry"] = industries
 
                 try:
                     r = await client.get(

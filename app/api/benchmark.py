@@ -18,7 +18,7 @@ from app.services.audit import log_action
 from app.services.benchmark_service import (
     clean_for_json,
     export_to_excel,
-    fetch_belarusbank_rates,
+    fetch_exchange_rates,
     fetch_vacancies,
     filter_outliers_and_compute_stats,
     process_vacancies_data,
@@ -71,7 +71,7 @@ def _vacancy_to_table(v: BenchmarkVacancy) -> dict:
     }
 
 
-# ── History & Rerun ─────────────────────────────────────────────────
+# ── History & Open ───────────────────────────────────────────────────
 
 
 @router.get("/history")
@@ -113,14 +113,14 @@ async def benchmark_history(
     }
 
 
-@router.post("/rerun/{search_id}")
-async def benchmark_rerun(
+@router.get("/open/{search_id}")
+async def benchmark_open(
     search_id: str,
     request: Request,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Re-run a past benchmark search with same params and return results."""
+    """Load a past benchmark search from DB (no API re-fetch)."""
     try:
         sid = _uuid.UUID(search_id)
     except ValueError:
@@ -129,32 +129,12 @@ async def benchmark_rerun(
     if bench is None or bench.user_id != user.id:
         return JSONResponse(status_code=404, content={"error": "Поиск не найден"})
 
-    params = bench.query_params or {}
-    exclude = params.get("exclude", "").strip().replace(" ", ",")
-    area_str = params.get("area", "16")
-    experience = params.get("experience") or None
-    period = int(params.get("period", 30))
-    if period not in BENCHMARK_PERIOD_OPTIONS:
-        period = 30
-
-    if area_str == "all":
-        areas = [16, 1, 2]
-    else:
-        try:
-            areas = [int(area_str)]
-        except ValueError:
-            areas = [16]
-
-    data = await fetch_vacancies(
-        job_query=bench.query_text,
-        excluded_text=exclude,
-        areas=areas,
-        experience=experience,
-        period=period,
+    result = await db.execute(
+        select(BenchmarkVacancy).where(BenchmarkVacancy.search_id == sid)
     )
+    vacancies = result.scalars().all()
 
-    rows = await process_vacancies_data(data)
-
+    params = bench.query_params or {}
     form_params = {
         "query_text": bench.query_text or "",
         "query_params": {
@@ -163,77 +143,61 @@ async def benchmark_rerun(
             "area": params.get("area", "16"),
             "experience": params.get("experience", ""),
             "period": int(params.get("period", 30)),
+            "industry": params.get("industry", []),
         },
     }
 
-    if not rows:
-        new_bench = BenchmarkSearch(
-            user_id=user.id,
-            query_text=bench.query_text,
-            query_params=bench.query_params,
-            total_vacancies=0,
-            filtered_count=0,
-        )
-        db.add(new_bench)
-        await db.flush()
-        await log_action(
-            db, "benchmark_rerun", request, user.id,
-            {"query": bench.query_text, "original_id": search_id, "results": 0},
-        )
-        return JSONResponse(
-            content={
-                "table": [],
-                "stats": {
-                    "count": 0,
-                    "min": None,
-                    "max": None,
-                    "mean": None,
-                    "median": None,
-                },
-                "salary_avg_gross": [],
-                "salary_avg_net": [],
-                "total_count": 0,
-                "search_id": str(new_bench.id),
-                **form_params,
-            }
-        )
+    table_records = [
+        r for v in vacancies for r in to_table_records([_vacancy_to_table(v)])
+    ]
+    stats = {
+        "count": bench.filtered_count or 0,
+        "min": bench.stat_min,
+        "max": bench.stat_max,
+        "mean": bench.stat_mean,
+        "median": bench.stat_median,
+    }
 
-    filtered, stats, salary_avg_gross_list, salary_avg_net_list = (
-        filter_outliers_and_compute_stats(rows)
-    )
-    table_data = to_table_records(filtered)
-
-    new_bench = BenchmarkSearch(
-        user_id=user.id,
-        query_text=bench.query_text,
-        query_params=bench.query_params,
-        total_vacancies=len(rows),
-        filtered_count=stats["count"],
-        stat_min=stats.get("min"),
-        stat_max=stats.get("max"),
-        stat_mean=stats.get("mean"),
-        stat_median=stats.get("median"),
-    )
-    db.add(new_bench)
-    await db.flush()
-
-    _save_vacancies(db, new_bench.id, table_data)
-    await db.flush()
+    salary_avg_gross_list: list[int] = []
+    salary_avg_net_list: list[int] = []
+    for v in vacancies:
+        avg_g = (
+            (v.salary_gross_from_byn + v.salary_gross_to_byn) / 2
+            if (
+                v.salary_gross_from_byn is not None
+                and v.salary_gross_to_byn is not None
+            )
+            else (v.salary_gross_from_byn or v.salary_gross_to_byn)
+        )
+        avg_n = (
+            (v.salary_net_from_byn + v.salary_net_to_byn) / 2
+            if (
+                v.salary_net_from_byn is not None
+                and v.salary_net_to_byn is not None
+            )
+            else (v.salary_net_from_byn or v.salary_net_to_byn)
+        )
+        if avg_g is not None:
+            salary_avg_gross_list.append(round(avg_g))
+        if avg_n is not None:
+            salary_avg_net_list.append(round(avg_n))
 
     await log_action(
-        db, "benchmark_rerun", request, user.id,
-        {"query": bench.query_text, "original_id": search_id,
-         "total": len(rows), "filtered": stats["count"]},
+        db,
+        "benchmark_open",
+        request,
+        user.id,
+        {"query": bench.query_text, "search_id": search_id, "count": len(vacancies)},
     )
 
     return JSONResponse(
         content={
-            "table": clean_for_json(table_data),
+            "table": clean_for_json(table_records),
             "stats": clean_for_json(stats),
             "salary_avg_gross": salary_avg_gross_list,
             "salary_avg_net": salary_avg_net_list,
-            "total_count": len(table_data),
-            "search_id": str(new_bench.id),
+            "total_count": len(table_records),
+            "search_id": str(bench.id),
             **form_params,
         }
     )
@@ -248,6 +212,7 @@ class BenchmarkSearchRequest(BaseModel):
     area: str = "16"
     experience: str = ""
     period: int = 30
+    industry: list[str] = []
 
 
 @router.post("/search")
@@ -275,6 +240,12 @@ async def search_vacancies(
 
     experience = body.experience if body.experience else None
     period = body.period if body.period in BENCHMARK_PERIOD_OPTIONS else 30
+    industry_ids: list[int] = []
+    for s in body.industry or []:
+        try:
+            industry_ids.append(int(s))
+        except (ValueError, TypeError):
+            pass
 
     data = await fetch_vacancies(
         job_query=job_query,
@@ -282,6 +253,7 @@ async def search_vacancies(
         areas=areas,
         experience=experience,
         period=period,
+        industries=industry_ids if industry_ids else None,
     )
 
     rows = await process_vacancies_data(data)
@@ -295,6 +267,7 @@ async def search_vacancies(
                 "area": body.area,
                 "experience": body.experience,
                 "period": body.period,
+                "industry": body.industry or [],
             },
             total_vacancies=0,
             filtered_count=0,
@@ -335,6 +308,7 @@ async def search_vacancies(
             "area": body.area,
             "experience": body.experience,
             "period": body.period,
+            "industry": body.industry or [],
         },
         total_vacancies=len(rows),
         filtered_count=stats["count"],
@@ -419,7 +393,7 @@ async def benchmark_export_excel(
 
 @router.get("/rates")
 async def get_rates(user: User = Depends(get_current_user)):
-    rates = await fetch_belarusbank_rates()
+    rates = await fetch_exchange_rates()
     if rates:
         return JSONResponse(
             content={

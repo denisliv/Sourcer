@@ -34,6 +34,27 @@
                 </div>
             </div>
 
+            <div class="search-row-industry">
+                <div class="form-group form-group-industry-dropdown">
+                    <label>Отрасль</label>
+                    <div class="industry-dropdown" id="benchIndustryDropdown">
+                        <button type="button" class="industry-dropdown-trigger" id="benchIndustryTrigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="industry-dropdown-label" id="benchIndustryLabel">Без фильтра</span>
+                            <span class="industry-dropdown-arrow">▼</span>
+                        </button>
+                        <div class="industry-dropdown-panel" id="benchIndustryPanel" role="listbox" hidden>
+                            <div class="industry-dropdown-header hidden" id="benchIndustryHeader">
+                                <span class="industry-dropdown-selected-count" id="benchIndustrySelectedCount"></span>
+                                <button type="button" class="industry-dropdown-clear" id="benchIndustryClear">Очистить выбор</button>
+                            </div>
+                            {% for opt in industry_options %}
+                            <label class="industry-dropdown-item"><input type="checkbox" name="benchIndustry" value="{{ opt.value }}"><span>{{ opt.label }}</span></label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="search-row-filters">
                 <div class="form-group form-group-experience">
                     <label>Опыт работы</label>
@@ -184,6 +205,6 @@ fetch("/api/auth/me", { credentials: "include" })
 })();
 </script>
 <div id="devToast" class="toast-dev" style="display:none;"></div>
-<script src="/static/benchmark.js?v=4"></script>
+<script src="/static/benchmark.js?v=5"></script>
 </body>
 </html>
