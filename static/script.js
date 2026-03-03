@@ -136,6 +136,17 @@ document.addEventListener("DOMContentLoaded", () => {
             tdSource.appendChild(span);
             tr.appendChild(tdSource);
 
+            // AI Score
+            const tdAi = document.createElement("td");
+            tdAi.className = "ai-score-cell";
+            tdAi.dataset.extId = c.external_id || "";
+            if (c.ai_score != null) {
+                tdAi.innerHTML = _aiScoreHtml(c.ai_score, c.ai_summary);
+            } else if (c.ai_status === "error") {
+                tdAi.innerHTML = _aiScoreHtml(null, c.ai_summary || "Ошибка");
+            }
+            tr.appendChild(tdAi);
+
             // Link
             const tdLink = document.createElement("td");
             if (c.url) {
@@ -235,6 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderTable(allCandidates);
             resultsMeta.textContent = `(найдено ${json.total_found})`;
             resultsSection.style.display = "block";
+            _syncEvalButton();
 
             resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
             loadHistory();
@@ -342,6 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderTable(allCandidates);
             resultsMeta.textContent = `(найдено ${json.total_found})`;
             resultsSection.style.display = "block";
+            _syncEvalButton();
             resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
         } catch (err) {
             showError("Ошибка: " + err.message);
@@ -387,4 +400,142 @@ document.addEventListener("DOMContentLoaded", () => {
             if (e.key === "Enter") btnSearch.click();
         });
     });
+
+    // ── AI Evaluation ────────────────────────────────────────────
+
+    const aiEvalSection = document.getElementById("aiEvalSection");
+    const aiEvalToggle = document.getElementById("aiEvalToggle");
+    if (aiEvalSection && aiEvalToggle) {
+        aiEvalToggle.addEventListener("click", () => {
+            aiEvalSection.classList.toggle("collapsed");
+        });
+    }
+
+    const btnEvaluate = document.getElementById("btnEvaluate");
+    const jobDescription = document.getElementById("jobDescription");
+    const aiEvalProgress = document.getElementById("aiEvalProgress");
+    let evalAbortController = null;
+
+    function _syncEvalButton() {
+        btnEvaluate.disabled = !jobDescription.value.trim() || !lastSearchId;
+    }
+
+    jobDescription.addEventListener("input", _syncEvalButton);
+
+    btnEvaluate.addEventListener("click", () => startEvaluation());
+
+    function _aiScoreHtml(score, summary) {
+        const encoded = summary ? escapeHtml(summary) : "";
+        if (score == null) {
+            return `<span class="ai-score-badge score-error" data-summary="${encoded}">—</span>`;
+        }
+        const cls = score >= 8 ? "score-high" : score >= 5 ? "score-mid" : "score-low";
+        return `<span class="ai-score-badge ${cls}" data-summary="${encoded}">${score}</span>`;
+    }
+
+    const _tip = document.createElement("div");
+    _tip.className = "ai-score-tooltip";
+    document.body.appendChild(_tip);
+
+    resultsBody.addEventListener("mouseenter", (e) => {
+        const badge = e.target.closest(".ai-score-badge[data-summary]");
+        if (!badge || !badge.dataset.summary) return;
+        const rect = badge.getBoundingClientRect();
+        _tip.textContent = badge.dataset.summary;
+        _tip.style.display = "block";
+        const tipRect = _tip.getBoundingClientRect();
+        let left = rect.right - tipRect.width;
+        if (left < 8) left = 8;
+        _tip.style.top = (rect.bottom + 8) + "px";
+        _tip.style.left = left + "px";
+    }, true);
+
+    resultsBody.addEventListener("mouseleave", (e) => {
+        const badge = e.target.closest(".ai-score-badge[data-summary]");
+        if (badge) _tip.style.display = "none";
+    }, true);
+
+    function _findAiCell(extId) {
+        return resultsBody.querySelector(`td.ai-score-cell[data-ext-id="${extId}"]`);
+    }
+
+    async function startEvaluation() {
+        if (!lastSearchId || !jobDescription.value.trim()) return;
+
+        btnEvaluate.disabled = true;
+        btnEvaluate.querySelector(".btn-eval-text").textContent = "Оценка...";
+        aiEvalProgress.style.display = "inline";
+        aiEvalProgress.textContent = "Подготовка...";
+        hideError();
+
+        evalAbortController = new AbortController();
+
+        try {
+            const resp = await fetch(`/api/search/${lastSearchId}/evaluate`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ job_description: jobDescription.value.trim() }),
+                signal: evalAbortController.signal,
+            });
+
+            if (!resp.ok) {
+                const errData = await resp.json().catch(() => ({}));
+                showError(errData.message || `Ошибка ${resp.status}`);
+                _resetEvalButton();
+                return;
+            }
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+
+                for (const line of lines) {
+                    if (!line.startsWith("data: ")) continue;
+                    let evt;
+                    try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+                    if (evt.status === "processing") {
+                        aiEvalProgress.textContent = `Оценка ${evt.index} из ${evt.total}...`;
+                        const cell = _findAiCell(evt.external_id);
+                        if (cell) cell.innerHTML = `<span class="ai-score-spinner"></span>`;
+                    } else if (evt.status === "done") {
+                        const cell = _findAiCell(evt.external_id);
+                        if (cell) cell.innerHTML = _aiScoreHtml(evt.score, evt.summary);
+                        const cand = allCandidates.find(c => (c.external_id || "") === evt.external_id);
+                        if (cand) { cand.ai_score = evt.score; cand.ai_summary = evt.summary; cand.ai_status = "done"; }
+                    } else if (evt.status === "error") {
+                        const cell = _findAiCell(evt.external_id);
+                        if (cell) cell.innerHTML = _aiScoreHtml(null, evt.summary);
+                        const cand = allCandidates.find(c => (c.external_id || "") === evt.external_id);
+                        if (cand) { cand.ai_score = null; cand.ai_summary = evt.summary; cand.ai_status = "error"; }
+                    } else if (evt.status === "complete") {
+                        aiEvalProgress.textContent = `Готово: ${evt.evaluated} оценено` + (evt.errors > 0 ? `, ${evt.errors} ошибок` : "");
+                        _resetEvalButton();
+                    }
+                }
+            }
+        } catch (err) {
+            if (err.name !== "AbortError") {
+                showError("Ошибка AI-оценки: " + err.message);
+                aiEvalProgress.textContent = "Прервано. Нажмите для возобновления.";
+            }
+            _resetEvalButton(true);
+        }
+    }
+
+    function _resetEvalButton(isResume) {
+        btnEvaluate.disabled = !jobDescription.value.trim() || !lastSearchId;
+        btnEvaluate.querySelector(".btn-eval-text").textContent =
+            isResume ? "Возобновить оценку" : "Провести AI оценку";
+        evalAbortController = null;
+    }
 });

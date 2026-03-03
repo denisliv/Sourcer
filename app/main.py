@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import delete, select
 
-from app.core.config import BASE_DIR
+from app.core.config import BASE_DIR, LLM_MAX_CONCURRENT
 from app.core.database import async_session_factory
 from app.models.session import Session as SessionModel
 
@@ -18,7 +18,10 @@ from app.models.session import Session as SessionModel
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    """Clean up expired sessions on startup."""
+    """Clean up expired sessions on startup and init global resources."""
+    from app.services.evaluation_service import init_semaphore
+    init_semaphore(LLM_MAX_CONCURRENT)
+
     async with async_session_factory() as db:
         await db.execute(
             delete(SessionModel).where(SessionModel.expires_at < datetime.now(timezone.utc))

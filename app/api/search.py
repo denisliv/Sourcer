@@ -1,6 +1,8 @@
 """Search and export routes: candidate search across HH and LinkedIn, CSV export."""
 
 import asyncio
+import json
+import logging
 import uuid as _uuid
 from datetime import datetime, timezone
 from io import StringIO
@@ -22,7 +24,8 @@ from app.models.credential import Credential
 from app.models.search import Search as SearchModel
 from app.models.user import User
 from app.services.audit import log_action
-from app.services.hh_service import MAX_TOTAL, get_hh_headers, run_hh_search
+from app.services.evaluation_service import evaluate_candidate, prepare_candidate_context
+from app.services.hh_service import MAX_TOTAL, fetch_full_resume, get_hh_headers, run_hh_search
 from app.services.linkedin_service import search_linkedin
 
 router = APIRouter(tags=["search"])
@@ -54,6 +57,9 @@ def _candidate_to_ui(
         "url": c.profile_url or "",
         "updated_at": extra.get("updated_at", "—"),
         "fetched_at": fetched,
+        "ai_score": c.ai_score,
+        "ai_summary": c.ai_summary or "",
+        "ai_status": c.ai_status or "",
     }
 
 
@@ -481,3 +487,123 @@ async def export_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": content_disp},
     )
+
+
+logger = logging.getLogger(__name__)
+
+HH_RESUME_API_URL = "https://api.hh.ru/resumes"
+
+
+# ── AI evaluation endpoint (SSE) ─────────────────────────────────
+
+@router.post("/api/search/{search_id}/evaluate")
+async def evaluate_search_candidates(
+    search_id: str,
+    request: Request,
+    job_description: str = Body(..., embed=True),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Evaluate candidates via LLM. Returns SSE stream with per-candidate results."""
+    try:
+        sid = _uuid.UUID(search_id)
+    except ValueError:
+        return {"error": True, "message": "Недействительный search_id"}
+
+    search = await db.get(SearchModel, sid)
+    if search is None or search.user_id != user.id:
+        return {"error": True, "message": "Поиск не найден"}
+
+    if not job_description.strip():
+        return {"error": True, "message": "Описание вакансии не может быть пустым."}
+
+    result = await db.execute(
+        select(CandidateModel).where(CandidateModel.search_id == sid)
+    )
+    all_candidates = result.scalars().all()
+
+    hh_candidates = [c for c in all_candidates if c.source == "hh"]
+    if not hh_candidates:
+        return {"error": True, "message": "Нет HH-кандидатов для оценки."}
+
+    headers = await get_hh_headers(user, db)
+    if headers is None:
+        return {"error": True, "message": "HH credentials не настроены. Перейдите в Личный кабинет."}
+
+    # Candidates to evaluate (skip already done for reconnect support)
+    to_evaluate = [c for c in hh_candidates if c.ai_status != "done"]
+    total = len(hh_candidates)
+    already_done = total - len(to_evaluate)
+
+    async def _event_stream():
+        evaluated = already_done
+        errors = 0
+
+        for idx, candidate in enumerate(to_evaluate):
+            global_idx = already_done + idx + 1
+            ext_id = candidate.external_id or str(candidate.id)
+
+            yield _sse({"status": "processing", "external_id": ext_id, "index": global_idx, "total": total})
+
+            candidate.ai_status = "processing"
+            await db.commit()
+
+            resume_data = None
+            if candidate.raw_data:
+                resume_data = candidate.raw_data
+            else:
+                resume_url = f"{HH_RESUME_API_URL}/{ext_id}?host=rabota.by"
+                try:
+                    body = await fetch_full_resume(headers, resume_url)
+                    resume_data = json.loads(body)
+                    candidate.raw_data = resume_data
+                    await db.commit()
+                except Exception as e:
+                    logger.warning("Failed to fetch resume %s: %s", ext_id, e)
+                    candidate.ai_status = "error"
+                    candidate.ai_summary = f"Ошибка загрузки резюме: {str(e)[:200]}"
+                    await db.commit()
+                    errors += 1
+                    yield _sse({"status": "error", "external_id": ext_id, "summary": candidate.ai_summary})
+                    continue
+
+            context = prepare_candidate_context(resume_data)
+            eval_result = await evaluate_candidate(job_description, context)
+
+            candidate.ai_score = eval_result["score"]
+            candidate.ai_summary = eval_result["summary"]
+            candidate.ai_status = "done" if eval_result["score"] is not None else "error"
+            await db.commit()
+
+            if eval_result["score"] is not None:
+                evaluated += 1
+                yield _sse({
+                    "status": "done",
+                    "external_id": ext_id,
+                    "score": eval_result["score"],
+                    "summary": eval_result["summary"],
+                })
+            else:
+                errors += 1
+                yield _sse({
+                    "status": "error",
+                    "external_id": ext_id,
+                    "summary": eval_result["summary"],
+                })
+
+            await asyncio.sleep(0.3)
+
+        yield _sse({"status": "complete", "evaluated": evaluated, "errors": errors, "total": total})
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def _sse(data: dict) -> str:
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"

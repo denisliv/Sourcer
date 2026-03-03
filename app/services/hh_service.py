@@ -275,3 +275,16 @@ async def run_hh_search(
             await asyncio.sleep(0.25)
 
     return candidates, total_found
+
+
+# ── full resume fetcher ──────────────────────────────────────────
+
+async def fetch_full_resume(headers: dict, resume_url: str) -> str:
+    """Fetch full resume by URL using access_token.
+
+    Returns raw response text (HTML or JSON depending on the URL).
+    """
+    async with httpx.AsyncClient(headers=headers, timeout=30.0) as client:
+        resp = await client.get(resume_url)
+        resp.raise_for_status()
+        return resp.text

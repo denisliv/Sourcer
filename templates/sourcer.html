@@ -122,6 +122,27 @@
 
     <!-- Results -->
     <section class="results-card" id="resultsSection" style="display:none;">
+
+        <!-- AI Evaluation (collapsible) -->
+        <div class="ai-eval-card collapsed" id="aiEvalSection">
+            <div class="ai-eval-header" id="aiEvalToggle">
+                <h3 class="ai-eval-title">AI оценка кандидатов</h3>
+                <span class="ai-eval-chevron" id="aiEvalChevron">▼</span>
+            </div>
+            <div class="ai-eval-body" id="aiEvalBody">
+                <div class="ai-eval-row">
+                    <textarea id="jobDescription" class="ai-eval-textarea" rows="3" placeholder="Вставьте описание вакансии для AI-оценки кандидатов..."></textarea>
+                    <div class="ai-eval-controls">
+                        <button id="btnEvaluate" class="btn-primary btn-evaluate" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <span class="btn-eval-text">Провести AI оценку</span>
+                        </button>
+                        <span id="aiEvalProgress" class="ai-eval-progress" style="display:none;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="results-header">
             <h2>Результаты <span id="resultsMeta"></span></h2>
             <button id="btnExport" class="btn-outline">
@@ -129,6 +150,7 @@
                 Выгрузить CSV
             </button>
         </div>
+
         <div class="table-wrapper">
             <table id="resultsTable">
                 <thead>
@@ -141,6 +163,7 @@
                         <th>Опыт</th>
                         <th>Зарплата</th>
                         <th class="th-source">Источник</th>
+                        <th class="th-ai-score">AI</th>
                         <th>Ссылка</th>
                         <th>Обновлено</th>
                         <th>Дата выгрузки</th>
@@ -193,6 +216,6 @@ fetch("/api/auth/me", { credentials: "include" })
 })();
 </script>
 <div id="devToast" class="toast-dev" style="display:none;"></div>
-<script src="/static/script.js?v=8"></script>
+<script src="/static/script.js?v=9"></script>
 </body>
 </html>
