@@ -155,11 +155,19 @@ HR-сервис Альфа-Банка. Включает три модуля:
 | `current_title` | String(500) | Нет | Текущая должность |
 | `location` | String(255) | Нет | Локация/регион |
 | `profile_url` | String(1000) | Нет | Ссылка на профиль |
-| `extra_data` | JSONB | Нет | Дополнительные поля |
+| `photo` | String(1000) | Нет | URL фото кандидата |
+| `experience` | String(100) | Нет | Опыт работы (форматированная строка) |
+| `last_work` | String(500) | Нет | Последнее место работы (компания / должность) |
+| `salary` | String(100) | Нет | Желаемая зарплата |
+| `resume_updated_at` | String(100) | Нет | Дата обновления резюме на платформе-источнике |
+| `raw_data` | JSONB | Нет | Полный JSON резюме (для LLM-оценки) |
+| `ai_score` | Integer | Нет | AI-оценка (1–10) |
+| `ai_summary` | Text | Нет | Комментарий AI к оценке |
+| `ai_status` | String(20) | Нет | Статус оценки: `processing`, `done`, `error` |
+| `position` | Integer | Нет | Порядковый номер для сохранения порядка выдачи |
 | `created_at` | DateTime(TZ) | — | Дата добавления |
 
-**Ограничение:** уникальная комбинация `(search_id, source, external_id)`.  
-**Содержимое `extra_data`:** `photo`, `experience`, `salary`, `updated_at` (HH) / `fetched_at` (LinkedIn).
+**Ограничение:** уникальная комбинация `(search_id, source, external_id)`.
 
 #### 7. **benchmark_searches** (Поиски — AlfaHRBenchmark)
 

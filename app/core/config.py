@@ -27,6 +27,11 @@ IS_PRODUCTION: bool = os.getenv("IS_PRODUCTION", "false").lower() in (
     "yes",
 )
 
+# ---- Data TTL ----
+SEARCH_TTL_DAYS: int = int(os.getenv("SEARCH_TTL_DAYS", "7"))
+CANDIDATE_VIEW_TTL_DAYS: int = int(os.getenv("CANDIDATE_VIEW_TTL_DAYS", "30"))
+CLEANUP_INTERVAL_HOURS: int = int(os.getenv("CLEANUP_INTERVAL_HOURS", "6"))
+
 # ---- HH defaults ----
 HH_API_URL: str = "https://api.hh.ru/resumes"
 HH_HOST: str = "rabota.by"

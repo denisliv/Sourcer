@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import uuid as _uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from urllib.parse import quote
 
@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.core.config import HH_DEFAULT_AREA, HH_AREAS_DICT
+from app.core.config import CANDIDATE_VIEW_TTL_DAYS, HH_DEFAULT_AREA, HH_AREAS_DICT
 from app.core.database import get_db
 from app.core.security import decrypt_credentials, encrypt_credentials
 from app.models.candidate import Candidate as CandidateModel
@@ -38,7 +38,6 @@ def _candidate_to_ui(
     viewed_keys: set[tuple[str, str]] | None = None,
 ) -> dict:
     """Convert Candidate model to UI format."""
-    extra = c.extra_data or {}
     fetched = c.created_at.strftime("%d.%m.%Y %H:%M") if c.created_at else "—"
     source = c.source or "hh"
     ext_id = c.external_id or ""
@@ -47,15 +46,15 @@ def _candidate_to_ui(
         "source": source,
         "external_id": ext_id,
         "is_viewed": is_viewed,
-        "photo": extra.get("photo"),
+        "photo": c.photo,
         "full_name": c.full_name or "—",
         "title": c.current_title or "—",
         "area": c.location or "—",
-        "experience": extra.get("experience", "—"),
-        "last_work": extra.get("last_work", "—"),
-        "salary": extra.get("salary", "—"),
+        "experience": c.experience or "—",
+        "last_work": c.last_work or "—",
+        "salary": c.salary or "—",
         "url": c.profile_url or "",
-        "updated_at": extra.get("updated_at", "—"),
+        "updated_at": c.resume_updated_at or "—",
         "fetched_at": fetched,
         "ai_score": c.ai_score,
         "ai_summary": c.ai_summary or "",
@@ -71,10 +70,12 @@ async def _load_viewed_keys(
     """Return set of (source, external_id) pairs the user has already viewed."""
     if not pairs:
         return set()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=CANDIDATE_VIEW_TTL_DAYS)
     result = await db.execute(
         select(CandidateView.source, CandidateView.external_id)
         .where(
             CandidateView.user_id == user_id,
+            CandidateView.viewed_at >= cutoff,
             tuple_(CandidateView.source, CandidateView.external_id).in_(pairs),
         )
     )
@@ -159,7 +160,9 @@ async def search_results(
     if search is None or search.user_id != user.id:
         return {"error": True, "message": "Поиск не найден"}
     result = await db.execute(
-        select(CandidateModel).where(CandidateModel.search_id == sid)
+        select(CandidateModel)
+        .where(CandidateModel.search_id == sid)
+        .order_by(CandidateModel.position)
     )
     candidates = result.scalars().all()
     pairs = [(c.source or "hh", c.external_id or "") for c in candidates if c.external_id]
@@ -346,8 +349,8 @@ async def search_resumes(
 
     candidates = hh_candidates + li_candidates
 
-    # Save candidates to DB
-    for c in hh_candidates:
+    # Save candidates to DB (with position to preserve display order)
+    for i, c in enumerate(hh_candidates):
         db.add(CandidateModel(
             search_id=search_record.id,
             source="hh",
@@ -356,15 +359,15 @@ async def search_resumes(
             current_title=c["title"],
             location=c["area"],
             profile_url=c["url"],
-            extra_data={
-                "photo": c.get("photo"),
-                "experience": c.get("experience"),
-                "last_work": c.get("last_work"),
-                "salary": c.get("salary"),
-                "updated_at": c.get("updated_at"),
-            },
+            position=i,
+            photo=c.get("photo"),
+            experience=c.get("experience"),
+            last_work=c.get("last_work"),
+            salary=c.get("salary"),
+            resume_updated_at=c.get("updated_at"),
         ))
-    for c in li_candidates:
+    hh_offset = len(hh_candidates)
+    for i, c in enumerate(li_candidates):
         ext_id = c.get("urn_id") or ""
         if not ext_id and c.get("url"):
             ext_id = c["url"].split("/in/")[-1].rstrip("/").split("?")[0] or ""
@@ -378,13 +381,12 @@ async def search_resumes(
             current_title=c["title"],
             location=c["area"],
             profile_url=c["url"],
-            extra_data={
-                "photo": c.get("photo"),
-                "experience": c.get("experience"),
-                "last_work": c.get("last_work"),
-                "salary": c.get("salary"),
-                "updated_at": c.get("updated_at"),
-            },
+            position=hh_offset + i,
+            photo=c.get("photo"),
+            experience=c.get("experience"),
+            last_work=c.get("last_work"),
+            salary=c.get("salary"),
+            resume_updated_at=c.get("updated_at"),
         ))
 
     # Determine status
@@ -449,7 +451,9 @@ async def export_csv(
         return {"error": True, "message": "Поиск не найден"}
 
     result = await db.execute(
-        select(CandidateModel).where(CandidateModel.search_id == sid)
+        select(CandidateModel)
+        .where(CandidateModel.search_id == sid)
+        .order_by(CandidateModel.position)
     )
     candidates = result.scalars().all()
 
@@ -458,18 +462,17 @@ async def export_csv(
     header = "Источник;Полное имя;Должность;Последнее место работы;Локация;Опыт;Зарплата;Ссылка;Обновлено;Дата выгрузки\n"
     buf.write(header)
     for c in candidates:
-        extra = c.extra_data or {}
         fetched = c.created_at.strftime("%d.%m.%Y %H:%M") if c.created_at else "—"
         row = ";".join([
             c.source or "hh",
             c.full_name or "—",
             c.current_title or "—",
-            extra.get("last_work", "—"),
+            c.last_work or "—",
             c.location or "—",
-            extra.get("experience", "—"),
-            extra.get("salary", "—"),
+            c.experience or "—",
+            c.salary or "—",
             c.profile_url or "",
-            extra.get("updated_at", "—"),
+            c.resume_updated_at or "—",
             fetched,
         ])
         buf.write(row + "\n")
@@ -501,6 +504,7 @@ async def evaluate_search_candidates(
     search_id: str,
     request: Request,
     job_description: str = Body(..., embed=True),
+    reset: bool = Body(False, embed=True),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -518,7 +522,9 @@ async def evaluate_search_candidates(
         return {"error": True, "message": "Описание вакансии не может быть пустым."}
 
     result = await db.execute(
-        select(CandidateModel).where(CandidateModel.search_id == sid)
+        select(CandidateModel)
+        .where(CandidateModel.search_id == sid)
+        .order_by(CandidateModel.position)
     )
     all_candidates = result.scalars().all()
 
@@ -530,8 +536,14 @@ async def evaluate_search_candidates(
     if headers is None:
         return {"error": True, "message": "HH credentials не настроены. Перейдите в Личный кабинет."}
 
-    # Candidates to evaluate (skip already done for reconnect support)
-    to_evaluate = [c for c in hh_candidates if c.ai_status != "done"]
+    if reset:
+        for c in hh_candidates:
+            c.ai_score = None
+            c.ai_summary = None
+            c.ai_status = None
+        await db.commit()
+
+    to_evaluate = hh_candidates if reset else [c for c in hh_candidates if c.ai_status != "done"]
     total = len(hh_candidates)
     already_done = total - len(to_evaluate)
 

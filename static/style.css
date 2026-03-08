@@ -91,15 +91,20 @@ header {
 }
 
 .nav-link {
+    display: inline-flex;
+    align-items: center;
     color: #fff;
     text-decoration: none;
     font-size: 0.9rem;
     font-weight: 500;
     opacity: 0.9;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
 }
 
 .nav-link:hover {
     opacity: 1;
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .btn-logout {
@@ -128,14 +133,18 @@ header {
     background: transparent;
     border: none;
     color: #fff;
+    font-family: inherit;
+    line-height: inherit;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
     padding: 0.3rem 0.5rem;
     border-radius: 6px;
+    opacity: 0.9;
 }
 
 .dropdown-trigger:hover {
+    opacity: 1;
     background: rgba(255, 255, 255, 0.15);
 }
 

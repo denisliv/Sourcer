@@ -416,8 +416,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiEvalProgress = document.getElementById("aiEvalProgress");
     let evalAbortController = null;
 
+    function _hasEvaluatedCandidates() {
+        return allCandidates.some(c => c.ai_status === "done" || c.ai_score != null);
+    }
+
     function _syncEvalButton() {
         btnEvaluate.disabled = !jobDescription.value.trim() || !lastSearchId;
+        const textEl = btnEvaluate.querySelector(".btn-eval-text");
+        textEl.textContent = _hasEvaluatedCandidates()
+            ? "Повторить AI оценку"
+            : "Провести AI оценку";
     }
 
     jobDescription.addEventListener("input", _syncEvalButton);
@@ -446,7 +454,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const tipRect = _tip.getBoundingClientRect();
         let left = rect.right - tipRect.width;
         if (left < 8) left = 8;
-        _tip.style.top = (rect.bottom + 8) + "px";
+        let top = rect.bottom + 8;
+        if (top + tipRect.height > window.innerHeight - 8) {
+            top = rect.top - tipRect.height - 8;
+        }
+        if (top < 8) top = 8;
+        _tip.style.top = top + "px";
         _tip.style.left = left + "px";
     }, true);
 
@@ -462,6 +475,17 @@ document.addEventListener("DOMContentLoaded", () => {
     async function startEvaluation() {
         if (!lastSearchId || !jobDescription.value.trim()) return;
 
+        const isReset = _hasEvaluatedCandidates();
+
+        if (isReset) {
+            allCandidates.forEach(c => {
+                c.ai_score = null;
+                c.ai_summary = "";
+                c.ai_status = "";
+            });
+            renderTable(allCandidates);
+        }
+
         btnEvaluate.disabled = true;
         btnEvaluate.querySelector(".btn-eval-text").textContent = "Оценка...";
         aiEvalProgress.style.display = "inline";
@@ -475,7 +499,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ job_description: jobDescription.value.trim() }),
+                body: JSON.stringify({ job_description: jobDescription.value.trim(), reset: isReset }),
                 signal: evalAbortController.signal,
             });
 
@@ -533,9 +557,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function _resetEvalButton(isResume) {
-        btnEvaluate.disabled = !jobDescription.value.trim() || !lastSearchId;
-        btnEvaluate.querySelector(".btn-eval-text").textContent =
-            isResume ? "Возобновить оценку" : "Провести AI оценку";
         evalAbortController = null;
+        if (isResume) {
+            btnEvaluate.disabled = !jobDescription.value.trim() || !lastSearchId;
+            btnEvaluate.querySelector(".btn-eval-text").textContent = "Возобновить оценку";
+        } else {
+            _syncEvalButton();
+        }
     }
 });

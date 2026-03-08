@@ -1,7 +1,9 @@
 """AlfaHRService — multi-user FastAPI application."""
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,25 +11,80 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import delete, select
 
-from app.core.config import BASE_DIR, LLM_MAX_CONCURRENT
+from app.core.config import (
+    BASE_DIR,
+    CANDIDATE_VIEW_TTL_DAYS,
+    CLEANUP_INTERVAL_HOURS,
+    LLM_MAX_CONCURRENT,
+    SEARCH_TTL_DAYS,
+)
 from app.core.database import async_session_factory
+from app.models.candidate_view import CandidateView
+from app.models.search import Search as SearchModel
 from app.models.session import Session as SessionModel
+
+logger = logging.getLogger(__name__)
+
+
+# --------------- Data cleanup ---------------
+
+
+async def _run_cleanup() -> None:
+    """Delete stale searches (with cascaded candidates) and old candidate views."""
+    now = datetime.now(timezone.utc)
+    search_cutoff = now - timedelta(days=SEARCH_TTL_DAYS)
+    view_cutoff = now - timedelta(days=CANDIDATE_VIEW_TTL_DAYS)
+
+    async with async_session_factory() as db:
+        res_searches = await db.execute(
+            delete(SearchModel).where(SearchModel.created_at < search_cutoff)
+        )
+        res_views = await db.execute(
+            delete(CandidateView).where(CandidateView.viewed_at < view_cutoff)
+        )
+        await db.execute(
+            delete(SessionModel).where(SessionModel.expires_at < now)
+        )
+        await db.commit()
+
+    logger.info(
+        "Cleanup: deleted %d searches (with candidates), %d candidate views",
+        res_searches.rowcount,
+        res_views.rowcount,
+    )
+
+
+async def _periodic_cleanup() -> None:
+    """Background loop that runs cleanup every CLEANUP_INTERVAL_HOURS."""
+    interval = CLEANUP_INTERVAL_HOURS * 3600
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await _run_cleanup()
+        except Exception:
+            logger.exception("Periodic cleanup failed")
+
 
 # --------------- Lifespan ---------------
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    """Clean up expired sessions on startup and init global resources."""
+    """Init resources, run startup cleanup, launch periodic cleanup task."""
     from app.services.evaluation_service import init_semaphore
     init_semaphore(LLM_MAX_CONCURRENT)
 
-    async with async_session_factory() as db:
-        await db.execute(
-            delete(SessionModel).where(SessionModel.expires_at < datetime.now(timezone.utc))
-        )
-        await db.commit()
-    yield
+    await _run_cleanup()
+
+    cleanup_task = asyncio.create_task(_periodic_cleanup())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
 
 
 # --------------- App ---------------
