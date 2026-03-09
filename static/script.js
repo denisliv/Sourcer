@@ -412,6 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const btnEvaluate = document.getElementById("btnEvaluate");
+    const btnClearJobDesc = document.getElementById("btnClearJobDesc");
     const jobDescription = document.getElementById("jobDescription");
     const aiEvalProgress = document.getElementById("aiEvalProgress");
     let evalAbortController = null;
@@ -421,7 +422,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function _syncEvalButton() {
-        btnEvaluate.disabled = !jobDescription.value.trim() || !lastSearchId;
+        const hasText = !!jobDescription.value.trim();
+        btnEvaluate.disabled = !hasText || !lastSearchId;
+        if (btnClearJobDesc) btnClearJobDesc.disabled = !hasText;
         const textEl = btnEvaluate.querySelector(".btn-eval-text");
         textEl.textContent = _hasEvaluatedCandidates()
             ? "Повторить AI оценку"
@@ -431,6 +434,14 @@ document.addEventListener("DOMContentLoaded", () => {
     jobDescription.addEventListener("input", _syncEvalButton);
 
     btnEvaluate.addEventListener("click", () => startEvaluation());
+
+    if (btnClearJobDesc) {
+        btnClearJobDesc.addEventListener("click", () => {
+            jobDescription.value = "";
+            _syncEvalButton();
+            jobDescription.focus();
+        });
+    }
 
     function _aiScoreHtml(score, summary) {
         const encoded = summary ? escapeHtml(summary) : "";
