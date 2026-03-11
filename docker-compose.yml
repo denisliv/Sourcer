@@ -17,8 +17,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: backend.Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://admin:${DB_PASSWORD:-admin}@postgres:5432/hrservice
@@ -37,8 +37,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend.Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     depends_on:
       - backend
     ports:

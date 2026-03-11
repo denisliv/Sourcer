@@ -97,18 +97,23 @@ async def _override_get_db():
 @pytest.fixture
 def client():
     """Synchronous TestClient with DB override (including lifespan)."""
+    from unittest.mock import AsyncMock, patch
+
     import app.core.database as db_mod
     import app.main as main_mod
 
-    # Patch async_session_factory globally so lifespan uses test DB
     original_factory = db_mod.async_session_factory
     db_mod.async_session_factory = TestSessionFactory
     main_mod.async_session_factory = TestSessionFactory
 
     from app.main import app
     app.dependency_overrides[get_db] = _override_get_db
-    with TestClient(app) as c:
-        yield c
+
+    with patch("app.main.run_cleanup", new_callable=AsyncMock), \
+         patch("app.main.periodic_cleanup", new_callable=AsyncMock):
+        with TestClient(app) as c:
+            yield c
+
     app.dependency_overrides.clear()
     db_mod.async_session_factory = original_factory
     main_mod.async_session_factory = original_factory

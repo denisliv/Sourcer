@@ -181,9 +181,9 @@ class TestBuildParams:
 
 class TestNormalizeSources:
     def test_normalize(self):
-        from app.api.search import _normalize_sources
-        assert _normalize_sources("hh") == (True, False)
-        assert _normalize_sources("linkedin") == (False, True)
-        assert _normalize_sources("both") == (True, True)
-        assert _normalize_sources("") == (True, True)
-        assert _normalize_sources("BOTH") == (True, True)
+        from app.services.search_service import normalize_sources
+        assert normalize_sources("hh") == (True, False)
+        assert normalize_sources("linkedin") == (False, True)
+        assert normalize_sources("both") == (True, True)
+        assert normalize_sources("") == (True, True)
+        assert normalize_sources("BOTH") == (True, True)

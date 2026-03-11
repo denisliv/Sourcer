@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRSourcer — AlfaHRService</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="app-header"></div>
+
+<main>
+    <!-- Search form -->
+    <section class="search-card">
+        <div class="sources-row">
+            <label class="sources-label">Источники поиска:</label>
+            <div class="sources-chips">
+                <label class="chip sources-chip"><input type="radio" name="sources" value="hh" checked><span>HeadHunter</span></label>
+                <!-- Скрыто до обновления поиска по LinkedIn -->
+                <label class="chip sources-chip sources-chip-hidden"><input type="radio" name="sources" value="linkedin"><span>LinkedIn</span></label>
+                <label class="chip sources-chip sources-chip-hidden"><input type="radio" name="sources" value="both"><span>HeadHunter+LinkedIn</span></label>
+            </div>
+        </div>
+        <div class="search-header">
+            <h2>Поиск кандидатов</h2>
+            <button id="btnSearch" class="btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Найти
+            </button>
+        </div>
+
+        <div class="search-form">
+            <div class="search-row-main">
+                <div class="form-group form-group-search">
+                    <label for="searchText">Поиск в названии резюме</label>
+                    <div class="search-input-row search-input-row-equal">
+                        <input type="text" id="searchText" placeholder="Например: Python developer" autocomplete="off">
+                        <input type="text" id="searchCompany" placeholder="Компания / отрасль" autocomplete="off">
+                    </div>
+                    <label class="cb cb-below"><input type="checkbox" id="searchInPositions" name="searchInPositions"><span>Искать в должностях</span></label>
+                </div>
+                <div class="form-group form-group-skills">
+                    <label for="searchSkills">Навыки</label>
+                    <input type="text" id="searchSkills" placeholder="Python Django SQL" autocomplete="off">
+                    <div class="skills-field-radios">
+                        <label class="chip skills-radio"><input type="radio" name="searchSkillsField" value="skills" checked><span>Только в навыках</span></label>
+                        <label class="chip skills-radio"><input type="radio" name="searchSkillsField" value="everywhere"><span>Везде</span></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-row-exclude">
+                <label class="search-row-label">Исключить</label>
+                <input type="text" id="excludeTitle" placeholder="Из названия резюме" autocomplete="off">
+                <input type="text" id="excludeCompany" placeholder="Компанию / отрасль" autocomplete="off">
+            </div>
+
+            <div class="search-row-filters">
+                <div class="form-group form-group-experience">
+                    <label>Опыт</label>
+                    <div class="experience-chips">
+                        <label class="chip"><input type="checkbox" name="experience" value="noExperience"><span>Без опыта</span></label>
+                        <label class="chip"><input type="checkbox" name="experience" value="between1And3"><span>1–3 года</span></label>
+                        <label class="chip"><input type="checkbox" name="experience" value="between3And6" checked><span>3–6 лет</span></label>
+                        <label class="chip"><input type="checkbox" name="experience" value="moreThan6"><span>6+ лет</span></label>
+                    </div>
+                </div>
+                <div class="filters-inline">
+                    <div class="form-group">
+                        <label for="area">Регион</label>
+                        <select id="area">
+                            <option value="16" selected>Беларусь</option>
+                            <option value="1007">Брест</option>
+                            <option value="2233">Брестская область</option>
+                            <option value="1005">Витебск</option>
+                            <option value="2234">Витебская область</option>
+                            <option value="1003">Гомель</option>
+                            <option value="2235">Гомельская область</option>
+                            <option value="1006">Гродно</option>
+                            <option value="2236">Гродненская область</option>
+                            <option value="1002">Минск</option>
+                            <option value="2237">Минская область</option>
+                            <option value="1004">Могилев</option>
+                            <option value="2238">Могилевская область</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="period">Период</label>
+                        <select id="period">
+                            <option value="1">1 день</option>
+                            <option value="7">7 дней</option>
+                            <option value="30" selected>30 дней</option>
+                            <option value="90">90 дней</option>
+                            <option value="180">180 дней</option>
+                            <option value="365">365 дней</option>
+                        </select>
+                    </div>
+                    <div class="form-group form-group-count">
+                        <label for="count">Количество</label>
+                        <div class="count-input-wrap">
+                            <input type="number" id="count" value="10" min="1" max="2000" placeholder="10">
+                            <span class="hint">макс. 2000</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Search history -->
+    <section class="search-card history-card collapsed" id="historySection">
+        <div class="history-header" id="historyToggle">
+            <h3 class="history-title">История поисков</h3>
+            <span class="history-chevron" id="historyChevron">▼</span>
+        </div>
+        <div class="history-body" id="historyBody">
+            <div id="historyList"></div>
+            <p class="history-empty" id="historyEmpty" style="display:none;">История пуста</p>
+        </div>
+    </section>
+
+    <!-- Results -->
+    <section class="results-card" id="resultsSection" style="display:none;">
+        <div class="ai-eval-card collapsed" id="aiEvalSection">
+            <div class="ai-eval-header" id="aiEvalToggle">
+                <h3 class="ai-eval-title">AI оценка кандидатов</h3>
+                <span class="ai-eval-chevron" id="aiEvalChevron">▼</span>
+            </div>
+            <div class="ai-eval-body" id="aiEvalBody">
+                <div class="ai-eval-row">
+                    <textarea id="jobDescription" class="ai-eval-textarea" rows="3" placeholder="Вставьте описание вакансии для AI-оценки кандидатов..."></textarea>
+                    <div class="ai-eval-controls">
+                        <button id="btnEvaluate" class="btn-primary btn-evaluate" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <span class="btn-eval-text">Провести AI оценку</span>
+                        </button>
+                        <button id="btnClearJobDesc" class="btn-primary btn-evaluate" disabled title="Очистить описание вакансии">Очистить поле</button>
+                        <span id="aiEvalProgress" class="ai-eval-progress" style="display:none;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-header">
+            <h2>Результаты <span id="resultsMeta"></span></h2>
+            <button id="btnExport" class="btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Выгрузить CSV
+            </button>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th class="th-photo">Фото</th>
+                        <th>Полное имя</th>
+                        <th>Должность</th>
+                        <th>Последнее место работы</th>
+                        <th>Локация</th>
+                        <th>Опыт</th>
+                        <th>Зарплата</th>
+                        <th class="th-source">Источник</th>
+                        <th class="th-ai-score">AI</th>
+                        <th>Ссылка</th>
+                        <th>Обновлено</th>
+                        <th>Дата выгрузки</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+        <div class="results-pagination">
+            <span id="resultsPaginationMeta"></span>
+            <div class="pagination-buttons">
+                <button id="resultsPrev" class="btn-outline btn-sm">← Назад</button>
+                <button id="resultsNext" class="btn-outline btn-sm">Далее →</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Loading -->
+    <div id="loader" class="loader" style="display:none;">
+        <div class="spinner"></div>
+        <p>Поиск кандидатов...</p>
+    </div>
+
+    <!-- Error -->
+    <div id="errorBox" class="error-box" style="display:none;"></div>
+</main>
+
+<div id="app-footer"></div>
+
+<script src="/static/common.js"></script>
+<script src="/static/sourcer.js"></script>
+</body>
+</html>

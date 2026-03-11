@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRBenchmark — AlfaHRService</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div id="app-header"></div>
+
+<main>
+    <section class="search-card">
+        <div class="search-header">
+            <h2>Salary Benchmark</h2>
+            <button id="btnBenchSearch" class="btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Поиск вакансий
+            </button>
+        </div>
+
+        <div class="search-form">
+            <div class="search-row-main">
+                <div class="form-group form-group-search">
+                    <label for="benchInclude">Название вакансии</label>
+                    <input type="text" id="benchInclude" placeholder="Например: python developer" autocomplete="off" required>
+                </div>
+                <div class="form-group form-group-skills">
+                    <label for="benchExclude">Исключающие слова</label>
+                    <input type="text" id="benchExclude" placeholder="аналитик, стажёр" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="search-row-industry">
+                <div class="form-group form-group-industry-dropdown">
+                    <label>Отрасль</label>
+                    <div class="industry-dropdown" id="benchIndustryDropdown">
+                        <button type="button" class="industry-dropdown-trigger" id="benchIndustryTrigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="industry-dropdown-label" id="benchIndustryLabel">Без фильтра</span>
+                            <span class="industry-dropdown-arrow">▼</span>
+                        </button>
+                        <div class="industry-dropdown-panel" id="benchIndustryPanel" role="listbox" hidden>
+                            <div class="industry-dropdown-header hidden" id="benchIndustryHeader">
+                                <span class="industry-dropdown-selected-count" id="benchIndustrySelectedCount"></span>
+                                <button type="button" class="industry-dropdown-clear" id="benchIndustryClear">Очистить выбор</button>
+                            </div>
+                            <!-- populated dynamically by benchmark.js -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-row-filters">
+                <div class="form-group form-group-experience">
+                    <label>Опыт работы</label>
+                    <div class="experience-chips" id="benchExperienceChips">
+                        <!-- populated dynamically by benchmark.js -->
+                    </div>
+                </div>
+                <div class="filters-inline">
+                    <div class="form-group">
+                        <label for="benchArea">Регион</label>
+                        <select id="benchArea">
+                            <!-- populated dynamically by benchmark.js -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="benchPeriod">Период (дней)</label>
+                        <select id="benchPeriod">
+                            <!-- populated dynamically by benchmark.js -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Search history -->
+    <section class="search-card history-card collapsed" id="benchHistorySection">
+        <div class="history-header" id="benchHistoryToggle">
+            <h3 class="history-title">История поисков</h3>
+            <span class="history-chevron" id="benchHistoryChevron">▼</span>
+        </div>
+        <div class="history-body" id="benchHistoryBody">
+            <div id="benchHistoryList"></div>
+            <p class="history-empty" id="benchHistoryEmpty" style="display:none;">История пуста</p>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="results-card bench-stats-section" id="benchStatsSection" style="display:none;">
+        <h2>Статистика <span id="benchStatsMeta"></span></h2>
+        <div class="bench-stats-grid">
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Вакансий</div>
+                <div class="bench-stat-value" id="statCount">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Мин. ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMin">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Макс. ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMax">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Средняя ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMean">-</div>
+            </div>
+            <div class="bench-stat-card">
+                <div class="bench-stat-label">Медиана ЗП (gross)</div>
+                <div class="bench-stat-value" id="statMedian">-</div>
+            </div>
+        </div>
+        <div class="bench-chart-container">
+            <canvas id="salaryChart"></canvas>
+        </div>
+    </section>
+
+    <!-- Results table -->
+    <section class="results-card" id="benchResultsSection" style="display:none;">
+        <div class="results-header">
+            <h2>Результаты <span id="benchResultsMeta"></span></h2>
+            <button id="btnBenchExport" class="btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Выгрузить Excel
+            </button>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:52px">Лого</th>
+                        <th>Вакансия</th>
+                        <th>Компания</th>
+                        <th>Локация</th>
+                        <th>Специализация</th>
+                        <th>Опыт</th>
+                        <th>Net от</th>
+                        <th>Net до</th>
+                        <th>Gross от</th>
+                        <th>Gross до</th>
+                        <th>Ссылка</th>
+                        <th>Опубликовано</th>
+                        <th>Загружено</th>
+                    </tr>
+                </thead>
+                <tbody id="benchTableBody"></tbody>
+            </table>
+        </div>
+        <div class="results-pagination">
+            <span id="benchPaginationMeta"></span>
+            <div class="pagination-buttons">
+                <button id="benchPrev" class="btn-outline btn-sm">&larr; Назад</button>
+                <button id="benchNext" class="btn-outline btn-sm">Далее &rarr;</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Loader -->
+    <div id="benchLoader" class="loader" style="display:none;">
+        <div class="spinner"></div>
+        <p>Анализ рынка вакансий...</p>
+    </div>
+
+    <!-- Error -->
+    <div id="benchError" class="error-box" style="display:none;"></div>
+</main>
+
+<div id="app-footer"></div>
+
+<script src="/static/common.js"></script>
+<script src="/static/benchmark.js"></script>
+</body>
+</html>

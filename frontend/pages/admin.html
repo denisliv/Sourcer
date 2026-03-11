@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRService — Управление пользователями</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="app-header"></div>
+
+<main>
+    <div class="admin-grid">
+        <!-- Create user form -->
+        <div class="admin-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                Новый пользователь
+            </h3>
+            <div id="createSuccess" class="success-msg"></div>
+            <div id="createError" class="error-msg"></div>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label for="newEmail">Email</label>
+                    <input type="email" id="newEmail" required placeholder="user@example.com" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="newFullName">Имя</label>
+                    <input type="text" id="newFullName" placeholder="Иванов Иван">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Пароль</label>
+                    <input type="password" id="newPassword" required minlength="4" placeholder="Временный пароль">
+                </div>
+                <div class="form-group">
+                    <label class="cb-inline">
+                        <input type="checkbox" id="newIsAdmin">
+                        <span>Администратор</span>
+                    </label>
+                </div>
+                <button type="submit" class="btn-primary btn-sm" id="btnCreate">Создать</button>
+            </form>
+        </div>
+
+        <!-- Users table -->
+        <div class="admin-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Все пользователи
+            </h3>
+            <div class="table-wrapper">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Имя</th>
+                            <th>Роль</th>
+                            <th>Пароль</th>
+                            <th>Создан</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody">
+                        <tr><td colspan="6" class="empty-state">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div id="app-footer"></div>
+
+<script src="/static/common.js"></script>
+<script src="/static/admin.js"></script>
+</body>
+</html>

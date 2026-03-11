@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRService — Вход</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <a href="/" class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <span>AlfaHR<b>Service</b></span>
+        </a>
+    </div>
+</header>
+
+<main class="login-main">
+<div class="login-wrapper">
+    <div class="login-card">
+        <h2>Вход в систему</h2>
+        <div id="loginError" class="login-error"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required autocomplete="email" placeholder="user@example.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Введите пароль">
+            </div>
+            <button type="submit" class="btn-primary" id="btnLogin">Войти</button>
+        </form>
+    </div>
+</div>
+</main>
+
+<div id="app-footer"></div>
+
+<script src="/static/common.js"></script>
+<script src="/static/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRService — Личный кабинет</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="app-header"></div>
+
+<main>
+    <div id="mustChangeBanner" class="must-change-banner" style="display:none;">
+        Вам необходимо сменить пароль по умолчанию. Пожалуйста, установите новый пароль ниже.
+    </div>
+
+    <div class="account-grid">
+        <!-- Profile -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Профиль
+            </h3>
+            <div class="info-row">
+                <span class="info-label">Имя</span>
+                <span class="info-value" id="profileName">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value" id="profileEmail">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Роль</span>
+                <span class="info-value" id="profileRole">—</span>
+            </div>
+        </div>
+
+        <!-- Change password -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Смена пароля
+            </h3>
+            <div id="pwdSuccess" class="success-msg"></div>
+            <div id="pwdError" class="error-msg"></div>
+            <form id="passwordForm">
+                <div class="form-group">
+                    <label for="currentPassword">Текущий пароль</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Новый пароль</label>
+                    <input type="password" id="newPassword" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Подтверждение</label>
+                    <input type="password" id="confirmPassword" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary btn-sm">Сменить пароль</button>
+            </form>
+        </div>
+
+        <!-- HH Credentials (OAuth) -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                HeadHunter
+            </h3>
+            <div class="info-row" style="margin-bottom:0.75rem;">
+                <span class="info-label">Статус</span>
+                <span id="hhStatusBadge" class="status-badge status-not_configured">Загрузка...</span>
+            </div>
+            <div id="hhExpiresRow" class="info-row" style="margin-bottom:0.75rem;display:none;">
+                <span class="info-label">Токен действителен до</span>
+                <span class="info-value" id="hhExpiresAt"></span>
+            </div>
+            <div id="hhSuccess" class="success-msg"></div>
+            <div id="hhError" class="error-msg"></div>
+            <p id="hhDescription" style="font-size:0.85rem;color:var(--gray-500);margin-bottom:0.75rem;"></p>
+            <div id="hhActions" class="actions-row"></div>
+        </div>
+
+        <!-- LinkedIn Credentials -->
+        <div class="account-card">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+                LinkedIn
+            </h3>
+            <div class="info-row" style="margin-bottom:0.75rem;">
+                <span class="info-label">Статус</span>
+                <span id="liStatusBadge" class="status-badge status-not_configured">Загрузка...</span>
+            </div>
+            <div id="liUsernameRow" class="info-row" style="margin-bottom:0.75rem;display:none;">
+                <span class="info-label">Логин</span>
+                <span class="info-value" id="liUsernameVal"></span>
+            </div>
+            <div id="liSuccess" class="success-msg"></div>
+            <div id="liError" class="error-msg"></div>
+            <form id="liForm">
+                <div class="form-group">
+                    <label for="liUsername">Email / Логин</label>
+                    <input type="text" id="liUsername" placeholder="LinkedIn email" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="liPassword">Пароль</label>
+                    <input type="password" id="liPassword" placeholder="LinkedIn пароль">
+                </div>
+                <div class="actions-row">
+                    <button type="submit" class="btn-primary btn-sm">Подключить</button>
+                    <button type="button" id="btnDeleteLI" class="btn-danger btn-sm">Отключить</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Logs -->
+        <div class="account-card full-span">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Журнал действий
+            </h3>
+            <div class="logs-filter">
+                <label style="font-size:0.82rem;color:var(--gray-500);font-weight:500;">Фильтр:</label>
+                <select id="logFilter">
+                    <option value="">Все действия</option>
+                    <option value="login">Вход</option>
+                    <option value="logout">Выход</option>
+                    <option value="search">Поиск</option>
+                    <option value="export_csv">Экспорт CSV</option>
+                    <option value="password_change">Смена пароля</option>
+                    <option value="credential_update">Обновление credentials</option>
+                    <option value="credential_delete">Удаление credentials</option>
+                </select>
+            </div>
+            <div class="table-wrapper">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Дата / время</th>
+                            <th>Действие</th>
+                            <th>Детали</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsBody">
+                        <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:1.5rem;">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="logs-pagination">
+                <span id="logsMeta"></span>
+                <div>
+                    <button id="logsPrev" class="btn-outline btn-sm" disabled>&larr; Назад</button>
+                    <button id="logsNext" class="btn-outline btn-sm">Далее &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div id="app-footer"></div>
+
+<script src="/static/common.js"></script>
+<script src="/static/account.js"></script>
+</body>
+</html>

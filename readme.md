@@ -10,8 +10,8 @@ HR-сервис Альфа-Банка. Включает три модуля:
 
 - **Backend**: FastAPI, SQLAlchemy (async), Alembic, Playwright, OpenAI API
 - **Database**: PostgreSQL 16
-- **Frontend**: Jinja2 + vanilla JS + Chart.js (графики Benchmark)
-- **LLM**: OpenAI-совместимый API (gpt-4o-mini по умолчанию)
+- **Frontend**: vanilla JS + HTML + CSS
+- **LLM**: OpenAI-совместимый API
 - **Deploy**: Docker Compose, Nginx
 
 ## Сервисы
@@ -327,7 +327,7 @@ venv\Scripts\activate
 # Linux/macOS
 source venv/bin/activate
 
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 playwright install chromium
 ```
 
@@ -377,13 +377,13 @@ OPENAI_MODEL=gpt-4o-mini
 
 ```bash
 # Применить миграции
-python -m alembic upgrade head
+python -m alembic -c backend/alembic.ini upgrade head
 
 # Создать admin-пользователя
-python create_admin.py admin@example.com password123 "Admin Name"
+python backend/create_admin.py admin@example.com password123 "Admin Name"
 
 # Запустить сервер (с hot reload)
-python -m app
+python -m backend.app
 ```
 
 Приложение: http://localhost:8000
@@ -432,43 +432,61 @@ docker compose down -v     # остановить и удалить данные
 ## Структура проекта
 
 ```
-├── app/
-│   ├── api/
-│   │   ├── auth.py              # Аутентификация
-│   │   ├── account.py           # Управление аккаунтом
-│   │   ├── admin.py             # Администрирование
-│   │   ├── search.py            # AlfaHRSourcer API
-│   │   ├── benchmark.py         # AlfaHRBenchmark API
-│   │   ├── assistant.py         # AlfaHRAssistent API
-│   │   └── dependencies.py      # Auth dependencies
-│   ├── core/
-│   │   ├── config.py            # Конфигурация
-│   │   ├── database.py          # SQLAlchemy async
-│   │   └── security.py          # Пароли + шифрование
-│   ├── models/
-│   │   ├── user.py              # Пользователи
-│   │   ├── session.py           # Сессии
-│   │   ├── credential.py        # Credentials (HH/LinkedIn)
-│   │   ├── audit_log.py         # Журнал аудита
-│   │   ├── search.py            # Поиски (Sourcer)
-│   │   ├── candidate.py         # Кандидаты (Sourcer)
-│   │   ├── benchmark.py         # Поиски и вакансии (Benchmark)
-│   │   └── assistant.py         # Чаты и сообщения (Assistent)
-│   ├── services/
-│   │   ├── hh_service.py        # HH API (резюме)
-│   │   ├── hh_oauth.py          # HH OAuth
-│   │   ├── linkedin_service.py  # LinkedIn API
-│   │   ├── linkedin_oauth.py    # LinkedIn auth
-│   │   ├── benchmark_service.py # HH API (вакансии) + аналитика
-│   │   ├── assistant_service.py # OpenAI LLM API
-│   │   └── audit.py             # Audit logging
-│   └── main.py                  # FastAPI app
-├── linkedin_api/                # LinkedIn API package
-├── alembic/                     # Миграции БД
-├── templates/                   # Jinja2 шаблоны
-├── static/                      # CSS, JS, favicon
-├── tests/                       # Pytest тесты
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── auth.py              # Аутентификация
+│   │   │   ├── account.py           # Управление аккаунтом
+│   │   │   ├── admin.py             # Администрирование
+│   │   │   ├── search.py            # AlfaHRSourcer API
+│   │   │   ├── benchmark.py         # AlfaHRBenchmark API
+│   │   │   ├── assistant.py         # AlfaHRAssistent API
+│   │   │   └── dependencies.py      # Auth dependencies
+│   │   ├── core/
+│   │   │   ├── config.py            # Конфигурация
+│   │   │   ├── database.py          # SQLAlchemy async
+│   │   │   └── security.py          # Пароли + шифрование
+│   │   ├── models/
+│   │   │   ├── user.py              # Пользователи
+│   │   │   ├── session.py           # Сессии
+│   │   │   ├── credential.py        # Credentials (HH/LinkedIn)
+│   │   │   ├── audit_log.py         # Журнал аудита
+│   │   │   ├── search.py            # Поиски (Sourcer)
+│   │   │   ├── candidate.py         # Кандидаты (Sourcer)
+│   │   │   ├── benchmark.py         # Поиски и вакансии (Benchmark)
+│   │   │   └── assistant.py         # Чаты и сообщения (Assistent)
+│   │   ├── services/
+│   │   │   ├── hh_service.py        # HH API (резюме)
+│   │   │   ├── hh_oauth.py          # HH OAuth
+│   │   │   ├── linkedin_service.py  # LinkedIn API
+│   │   │   ├── linkedin_oauth.py    # LinkedIn auth
+│   │   │   ├── benchmark_service.py # HH API (вакансии) + аналитика
+│   │   │   ├── assistant_service.py # OpenAI LLM API
+│   │   │   └── audit.py             # Audit logging
+│   │   └── main.py                  # FastAPI app
+│   ├── config/                      # YAML-конфигурации (prompts, constants)
+│   ├── linkedin_api/                # LinkedIn API package
+│   ├── alembic/                     # Миграции БД
+│   ├── create_admin.py              # Скрипт создания admin-пользователя
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/
+│   ├── pages/                       # HTML-страницы
+│   │   ├── index.html
+│   │   ├── login.html
+│   │   ├── sourcer.html
+│   │   ├── benchmark.html
+│   │   ├── assistant.html
+│   │   ├── account.html
+│   │   └── admin.html
+│   ├── static/                      # CSS, JS, favicon
+│   │   ├── partials/               # Общие HTML-фрагменты (header, footer)
+│   │   ├── style.css
+│   │   ├── common.js
+│   │   └── ...
+│   ├── nginx.conf
+│   └── Dockerfile
+├── tests/                           # Pytest тесты
 ├── docker-compose.yml
-├── backend.Dockerfile
-└── requirements.txt
+└── pytest.ini
 ```

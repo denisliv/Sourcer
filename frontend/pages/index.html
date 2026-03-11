@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlfaHRService — Главная</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="app-header"></div>
+
+<main class="home-main">
+    <h1 class="home-title">Добро пожаловать в AlfaHRService</h1>
+    <p class="home-subtitle">Выберите сервис для работы</p>
+
+    <div class="service-cards">
+        <a href="/sourcer" class="service-card service-card-available">
+            <div class="service-card-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaHRSourcer</h2>
+            <p class="service-card-desc">Поиск кандидатов в HH и LinkedIn</p>
+            <span class="service-card-status service-card-ok">Доступен</span>
+        </a>
+
+        <a href="/benchmark" class="service-card service-card-available">
+            <div class="service-card-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaHRBenchmark</h2>
+            <p class="service-card-desc">Бенчмарки и аналитика зарплат</p>
+            <span class="service-card-status service-card-ok">Доступен</span>
+        </a>
+
+        <a href="/assistant" class="service-card service-card-available">
+            <div class="service-card-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaHRAssistent</h2>
+            <p class="service-card-desc">Помощник HR</p>
+            <span class="service-card-status service-card-ok">Доступен</span>
+        </a>
+
+        <div class="service-card service-card-dev">
+            <div class="service-card-icon service-card-icon-muted">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaEstaffResumeAnalyser</h2>
+            <p class="service-card-desc">ИИ анализ резюме из ATS</p>
+            <span class="service-card-status service-card-dev-badge">В разработке</span>
+        </div>
+
+        <div class="service-card service-card-dev">
+            <div class="service-card-icon service-card-icon-muted">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <h2 class="service-card-title">AlfaiSpingFeedback</h2>
+            <p class="service-card-desc">ИИ анализ анкет обратной связи</p>
+            <span class="service-card-status service-card-dev-badge">В разработке</span>
+        </div>
+    </div>
+</main>
+
+<div id="app-footer"></div>
+
+<script src="/static/common.js"></script>
+<script src="/static/home.js"></script>
+</body>
+</html>
