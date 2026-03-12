@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # ---- Data TTL ----
     search_ttl_days: int = 7
     candidate_view_ttl_days: int = 30
+    audit_log_ttl_days: int = 30
     cleanup_interval_hours: int = 6
 
     # ---- HH API ----

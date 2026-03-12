@@ -131,6 +131,11 @@
                     <option value="password_change">Смена пароля</option>
                     <option value="credential_update">Обновление credentials</option>
                     <option value="credential_delete">Удаление credentials</option>
+                    <option value="admin_create_user">Создание пользователя</option>
+                    <option value="admin_delete_user">Удаление пользователя</option>
+                    <option value="benchmark_search">Benchmark: поиск</option>
+                    <option value="benchmark_open">Benchmark: открытие</option>
+                    <option value="benchmark_export">Benchmark: экспорт</option>
                 </select>
             </div>
             <div class="table-wrapper">
@@ -138,13 +143,14 @@
                     <thead>
                         <tr>
                             <th>Дата / время</th>
+                            <th id="logsUserTh" style="display:none">Пользователь</th>
                             <th>Действие</th>
                             <th>Детали</th>
                             <th>IP</th>
                         </tr>
                     </thead>
                     <tbody id="logsBody">
-                        <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:1.5rem;">Загрузка...</td></tr>
+                        <tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:1.5rem;">Загрузка...</td></tr>
                     </tbody>
                 </table>
             </div>

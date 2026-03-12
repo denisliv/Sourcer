@@ -5,15 +5,16 @@ import hashlib
 import hmac
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
@@ -25,7 +26,6 @@ from app.core.security import (
 from app.models.audit_log import AuditLog
 from app.models.credential import Credential
 from app.models.user import User
-from app.api.dependencies import get_current_user
 from app.services.audit import log_action
 from app.services.hh_oauth import (
     compute_expires_at,
@@ -38,6 +38,7 @@ router = APIRouter(tags=["account"])
 
 # --------------- Account status (JSON API for SPA) ---------------
 
+
 @router.get("/api/account/status")
 async def account_status(
     user: User = Depends(get_current_user),
@@ -46,7 +47,9 @@ async def account_status(
     """Return credential statuses as JSON (for SPA frontend)."""
     # HH credential
     result = await db.execute(
-        select(Credential).where(Credential.user_id == user.id, Credential.provider == "hh")
+        select(Credential).where(
+            Credential.user_id == user.id, Credential.provider == "hh"
+        )
     )
     hh_cred = result.scalar_one_or_none()
     hh_status = "not_configured"
@@ -69,7 +72,9 @@ async def account_status(
 
     # LinkedIn credential
     result = await db.execute(
-        select(Credential).where(Credential.user_id == user.id, Credential.provider == "linkedin")
+        select(Credential).where(
+            Credential.user_id == user.id, Credential.provider == "linkedin"
+        )
     )
     li_cred = result.scalar_one_or_none()
     li_status = "not_configured"
@@ -99,6 +104,7 @@ async def account_status(
 
 
 # --------------- Change password ---------------
+
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
@@ -140,7 +146,9 @@ def _generate_oauth_state(user_id: str) -> str:
     """Generate a signed state parameter for OAuth CSRF protection."""
     timestamp = str(int(time.time()))
     message = f"{user_id}:{timestamp}"
-    sig = hmac.new(settings.secret_key.encode(), message.encode(), hashlib.sha256).hexdigest()[:16]
+    sig = hmac.new(
+        settings.secret_key.encode(), message.encode(), hashlib.sha256
+    ).hexdigest()[:16]
     return base64.urlsafe_b64encode(f"{message}:{sig}".encode()).decode()
 
 
@@ -156,7 +164,9 @@ def _verify_and_extract_user_id(state: str) -> str | None:
         if abs(int(time.time()) - int(timestamp)) > 900:
             return None
         message = f"{uid}:{timestamp}"
-        expected = hmac.new(settings.secret_key.encode(), message.encode(), hashlib.sha256).hexdigest()[:16]
+        expected = hmac.new(
+            settings.secret_key.encode(), message.encode(), hashlib.sha256
+        ).hexdigest()[:16]
         if not hmac.compare_digest(sig, expected):
             return None
         return uid
@@ -168,12 +178,14 @@ def _verify_and_extract_user_id(state: str) -> str | None:
 async def hh_authorize(user: User = Depends(get_current_user)):
     """Redirect the user to the HH OAuth authorization page."""
     state = _generate_oauth_state(str(user.id))
-    params = urlencode({
-        "response_type": "code",
-        "client_id": settings.hh_app_client_id,
-        "state": state,
-        "redirect_uri": settings.hh_redirect_uri,
-    })
+    params = urlencode(
+        {
+            "response_type": "code",
+            "client_id": settings.hh_app_client_id,
+            "state": state,
+            "redirect_uri": settings.hh_redirect_uri,
+        }
+    )
     return RedirectResponse(f"{HH_OAUTH_AUTHORIZE_URL}?{params}")
 
 
@@ -198,17 +210,23 @@ async def hh_callback(
         return RedirectResponse(f"/account?hh_error={quote(msg)}", status_code=302)
 
     if not code or not state:
-        return RedirectResponse("/account?hh_error=Отсутствует+code+или+state", status_code=302)
+        return RedirectResponse(
+            "/account?hh_error=Отсутствует+code+или+state", status_code=302
+        )
 
     # Verify state & extract user_id
     user_id_str = _verify_and_extract_user_id(state)
     if not user_id_str:
-        return RedirectResponse("/account?hh_error=Недействительный+параметр+state", status_code=302)
+        return RedirectResponse(
+            "/account?hh_error=Недействительный+параметр+state", status_code=302
+        )
 
     try:
         user_id = uuid.UUID(user_id_str)
     except ValueError:
-        return RedirectResponse("/account?hh_error=Недействительный+user_id", status_code=302)
+        return RedirectResponse(
+            "/account?hh_error=Недействительный+user_id", status_code=302
+        )
 
     # Exchange code for tokens
     try:
@@ -228,7 +246,9 @@ async def hh_callback(
 
     # Upsert credential
     result = await db.execute(
-        select(Credential).where(Credential.user_id == user_id, Credential.provider == "hh")
+        select(Credential).where(
+            Credential.user_id == user_id, Credential.provider == "hh"
+        )
     )
     cred = result.scalar_one_or_none()
     if cred:
@@ -244,7 +264,10 @@ async def hh_callback(
         db.add(cred)
 
     await log_action(
-        db, "credential_update", request=request, user_id=user_id,
+        db,
+        "credential_update",
+        request=request,
+        user_id=user_id,
         details={"provider": "hh", "method": "oauth"},
     )
     await db.flush()
@@ -265,12 +288,14 @@ async def hh_authorize_url(user: User = Depends(get_current_user)):
     if settings.is_production:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     state = _generate_oauth_state(str(user.id))
-    params = urlencode({
-        "response_type": "code",
-        "client_id": settings.hh_app_client_id,
-        "state": state,
-        "redirect_uri": settings.hh_redirect_uri,
-    })
+    params = urlencode(
+        {
+            "response_type": "code",
+            "client_id": settings.hh_app_client_id,
+            "state": state,
+            "redirect_uri": settings.hh_redirect_uri,
+        }
+    )
     return {"url": f"{HH_OAUTH_AUTHORIZE_URL}?{params}"}
 
 
@@ -314,7 +339,9 @@ async def hh_dev_code(
     encrypted = encrypt_credentials(cred_data)
 
     result = await db.execute(
-        select(Credential).where(Credential.user_id == user.id, Credential.provider == "hh")
+        select(Credential).where(
+            Credential.user_id == user.id, Credential.provider == "hh"
+        )
     )
     cred = result.scalar_one_or_none()
     if cred:
@@ -330,7 +357,10 @@ async def hh_dev_code(
         db.add(cred)
 
     await log_action(
-        db, "credential_update", request=request, user_id=user.id,
+        db,
+        "credential_update",
+        request=request,
+        user_id=user.id,
         details={"provider": "hh", "method": "dev_code"},
     )
     await db.flush()
@@ -345,17 +375,26 @@ async def delete_hh_credentials(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Credential).where(Credential.user_id == user.id, Credential.provider == "hh")
+        select(Credential).where(
+            Credential.user_id == user.id, Credential.provider == "hh"
+        )
     )
     cred = result.scalar_one_or_none()
     if cred:
         await db.delete(cred)
-        await log_action(db, "credential_delete", request=request, user_id=user.id, details={"provider": "hh"})
+        await log_action(
+            db,
+            "credential_delete",
+            request=request,
+            user_id=user.id,
+            details={"provider": "hh"},
+        )
         await db.flush()
     return {"ok": True, "message": "HH аккаунт отключён"}
 
 
 # --------------- LinkedIn Credentials ---------------
+
 
 class LinkedInCredentialRequest(BaseModel):
     username: str
@@ -370,6 +409,7 @@ async def save_linkedin_credentials(
     db: AsyncSession = Depends(get_db),
 ):
     import logging as _logging
+
     _logger = _logging.getLogger("app.api.account")
 
     data = {
@@ -382,6 +422,7 @@ async def save_linkedin_credentials(
     cookies_error = ""
     try:
         from app.services.linkedin_oauth import create_linkedin_cookies
+
         storage = await create_linkedin_cookies(data["username"], data["password"])
         data["cookies"] = storage
         cookies_ok = True
@@ -392,7 +433,9 @@ async def save_linkedin_credentials(
     encrypted = encrypt_credentials(data)
 
     result = await db.execute(
-        select(Credential).where(Credential.user_id == user.id, Credential.provider == "linkedin")
+        select(Credential).where(
+            Credential.user_id == user.id, Credential.provider == "linkedin"
+        )
     )
     cred = result.scalar_one_or_none()
     if cred:
@@ -407,7 +450,10 @@ async def save_linkedin_credentials(
         )
         db.add(cred)
     await log_action(
-        db, "credential_update", request=request, user_id=user.id,
+        db,
+        "credential_update",
+        request=request,
+        user_id=user.id,
         details={"provider": "linkedin", "cookies_ok": cookies_ok},
     )
     await db.flush()
@@ -432,17 +478,26 @@ async def delete_linkedin_credentials(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Credential).where(Credential.user_id == user.id, Credential.provider == "linkedin")
+        select(Credential).where(
+            Credential.user_id == user.id, Credential.provider == "linkedin"
+        )
     )
     cred = result.scalar_one_or_none()
     if cred:
         await db.delete(cred)
-        await log_action(db, "credential_delete", request=request, user_id=user.id, details={"provider": "linkedin"})
+        await log_action(
+            db,
+            "credential_delete",
+            request=request,
+            user_id=user.id,
+            details={"provider": "linkedin"},
+        )
         await db.flush()
     return {"ok": True, "message": "LinkedIn credentials удалены"}
 
 
 # --------------- Audit logs ---------------
+
 
 @router.get("/api/account/logs")
 async def get_logs(
@@ -452,9 +507,9 @@ async def get_logs(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get audit logs for the current user (admins see all)."""
-    query = select(AuditLog)
-    count_query = select(func.count(AuditLog.id))
+    """Get audit logs for the current user. Admins see logs of all users."""
+    query = select(AuditLog, User.email).outerjoin(User, AuditLog.user_id == User.id)
+    count_query = select(func.count(AuditLog.id)).select_from(AuditLog)
 
     if not user.is_admin:
         query = query.where(AuditLog.user_id == user.id)
@@ -472,21 +527,23 @@ async def get_logs(
     offset = (max(1, page) - 1) * per_page
     query = query.order_by(AuditLog.created_at.desc()).offset(offset).limit(per_page)
     result = await db.execute(query)
-    logs = result.scalars().all()
+    rows = result.all()
 
     return {
         "total": total,
         "page": page,
         "per_page": per_page,
+        "viewer_is_admin": user.is_admin,
         "logs": [
             {
                 "id": log.id,
                 "user_id": str(log.user_id) if log.user_id else None,
+                "user_email": email or None,
                 "action": log.action,
                 "ip_address": log.ip_address,
                 "details": log.details,
                 "created_at": log.created_at.isoformat() if log.created_at else None,
             }
-            for log in logs
+            for log, email in rows
         ],
     }

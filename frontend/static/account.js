@@ -104,9 +104,14 @@ document.addEventListener("DOMContentLoaded", () => {
         credential_update: "Обн. credentials",
         credential_delete: "Удал. credentials",
         admin_create_user: "Создание пользователя",
+        admin_delete_user: "Удаление пользователя",
+        benchmark_search: "Benchmark: поиск",
+        benchmark_open: "Benchmark: открытие",
+        benchmark_export: "Benchmark: экспорт",
     };
 
     let logsPage = 1;
+    let logsViewerIsAdmin = false;
 
     async function loadLogs(page = 1) {
         const filter = document.getElementById("logFilter").value;
@@ -116,11 +121,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const resp = await fetch(url);
         const data = await resp.json();
 
+        if (data.viewer_is_admin !== undefined) logsViewerIsAdmin = data.viewer_is_admin;
+
+        const thUser = document.getElementById("logsUserTh");
+        thUser.style.display = logsViewerIsAdmin ? "" : "none";
+
         const tbody = document.getElementById("logsBody");
         tbody.innerHTML = "";
 
+        const colspan = logsViewerIsAdmin ? 5 : 4;
         if (!data.logs || data.logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:1.5rem;">Нет записей</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--gray-400);padding:1.5rem;">Нет записей</td></tr>`;
         } else {
             data.logs.forEach(log => {
                 const tr = document.createElement("tr");
@@ -134,8 +145,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     else details = JSON.stringify(log.details).substring(0, 80);
                 }
 
+                const userCell = logsViewerIsAdmin ? `<td style="white-space:nowrap;">${log.user_email || "—"}</td>` : "";
                 tr.innerHTML = `
                     <td style="white-space:nowrap;">${dtStr}</td>
+                    ${userCell}
                     <td>${ACTION_LABELS[log.action] || log.action}</td>
                     <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${details || "—"}</td>
                     <td style="white-space:nowrap;">${log.ip_address || "—"}</td>
