@@ -388,6 +388,8 @@ async def evaluate_search_candidates(
     if headers is None:
         return {"error": True, "message": "HH credentials не настроены. Перейдите в Личный кабинет."}
 
+    search_area = (search.query_params or {}).get("area", HH_DEFAULT_AREA)
+
     return StreamingResponse(
         build_evaluation_stream(
             db=db,
@@ -395,6 +397,7 @@ async def evaluate_search_candidates(
             hh_candidates=hh_candidates,
             job_description=job_description,
             reset=reset,
+            area=int(search_area),
         ),
         media_type="text/event-stream",
         headers={

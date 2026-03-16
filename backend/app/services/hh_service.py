@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.constants import HH_AREA_HOST_MAP
 from app.core.security import decrypt_credentials, encrypt_credentials
 from app.models.credential import Credential
 from app.models.user import User
@@ -46,7 +47,8 @@ def build_params(
     """Build list-of-tuples params preserving duplicate keys order.
     Each text block gets its own text.logic, text.field, text.period triad.
     """
-    params: list[tuple[str, str]] = [("host", settings.hh_host)]
+    host = HH_AREA_HOST_MAP.get(area, settings.hh_host)
+    params: list[tuple[str, str]] = [("host", host)]
 
     if search_text.strip():
         fields = ["title"]

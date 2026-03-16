@@ -14,6 +14,38 @@ document.addEventListener("DOMContentLoaded", () => {
     let allCandidates = [];
     let currentPage = 1;
     let lastSearchId = null;
+    const historyItemsMap = {};
+
+    function restoreFormParams(queryText, queryParams) {
+        if (!queryParams) return;
+
+        const el = (id) => document.getElementById(id);
+
+        el("searchText").value = queryText || "";
+        el("searchCompany").value = queryParams.search_company || "";
+        el("searchSkills").value = queryParams.search_skills || "";
+        el("excludeTitle").value = queryParams.exclude_title || "";
+        el("excludeCompany").value = queryParams.exclude_company || "";
+
+        const positionsCheckbox = el("searchInPositions");
+        if (positionsCheckbox) positionsCheckbox.checked = !!queryParams.search_in_positions;
+
+        const skillsFieldValue = queryParams.search_skills_field || "skills";
+        const skillsRadio = document.querySelector(`input[name="searchSkillsField"][value="${skillsFieldValue}"]`);
+        if (skillsRadio) skillsRadio.checked = true;
+
+        document.querySelectorAll('input[name="experience"]').forEach(cb => {
+            cb.checked = Array.isArray(queryParams.experience) && queryParams.experience.includes(cb.value);
+        });
+
+        if (queryParams.area != null) el("area").value = String(queryParams.area);
+        if (queryParams.period != null) el("period").value = String(queryParams.period);
+        if (queryParams.count != null) el("count").value = String(queryParams.count);
+
+        const srcValue = queryParams.sources || "hh";
+        const srcRadio = document.querySelector(`input[name="sources"][value="${srcValue}"]`);
+        if (srcRadio) srcRadio.checked = true;
+    }
 
     // Collect form data (with fallbacks for cached HTML)
     function getFormData() {
@@ -309,6 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             empty.style.display = "none";
             json.items.forEach((item) => {
+                historyItemsMap[item.id] = item;
                 const div = document.createElement("div");
                 div.className = "history-item";
                 const dateStr = item.created_at ? formatDate(item.created_at) : "—";
@@ -337,6 +370,12 @@ document.addEventListener("DOMContentLoaded", () => {
     async function openHistorySearch(searchId) {
         hideError();
         loader.style.display = "block";
+
+        const historyItem = historyItemsMap[searchId];
+        if (historyItem) {
+            restoreFormParams(historyItem.query_text, historyItem.query_params);
+        }
+
         try {
             const resp = await fetch(`/api/search/${searchId}/results`, { credentials: "include" });
             const json = await resp.json();

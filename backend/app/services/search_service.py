@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import HH_AREA_HOST_MAP
 from app.core.security import decrypt_credentials, encrypt_credentials
 from app.models.candidate import Candidate as CandidateModel
 from app.models.credential import Credential
@@ -232,6 +233,7 @@ async def build_evaluation_stream(
     hh_candidates: list[CandidateModel],
     job_description: str,
     reset: bool,
+    area: int = 16,
 ) -> AsyncGenerator[str, None]:
     """Yield SSE events for AI evaluation of candidates."""
     headers = await get_hh_headers(user, db)
@@ -265,7 +267,8 @@ async def build_evaluation_stream(
         if candidate.raw_data:
             resume_data = candidate.raw_data
         else:
-            resume_url = f"{HH_RESUME_API_URL}/{ext_id}?host=rabota.by"
+            resume_host = HH_AREA_HOST_MAP.get(area, "rabota.by")
+            resume_url = f"{HH_RESUME_API_URL}/{ext_id}?host={resume_host}"
             try:
                 body = await fetch_full_resume(headers, resume_url)
                 resume_data = json.loads(body)
